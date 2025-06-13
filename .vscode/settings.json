@@ -1,0 +1,4 @@
+{
+    "java.compile.nullAnalysis.mode": "automatic",
+    "cmake.sourceDirectory": "/Users/w-874/goods_inventory_app/goods_inventory_app/linux"
+}
