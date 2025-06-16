@@ -1,4 +1,5 @@
 // lib/main.dart
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // Add to pubspec.yaml: intl: ^0.18.1
 import 'package:goods_inventory_app/database_helper.dart';
@@ -10,29 +11,48 @@ import 'good_detail_page.dart';
 import 'raw_material_detail_page.dart';
 import 'pending_good_detail_page.dart';
 
-void main() {
-  // Ensure that plugin services are initialized for database path.
+Future<void> main() async {
+  // Ensure that plugin services are initialized for database path and async operations.
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Explicitly initialize the database on startup.
+  // This triggers the _initDB() method in the helper if the database
+  // hasn't been created yet and ensures it's ready before any UI loads.
+  await DatabaseHelper.instance.database;
+  
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  // Default color scheme to be used if dynamic color is not available.
+  static final _defaultColorScheme = ColorScheme.fromSeed(seedColor: Colors.deepPurple);
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '库存管理',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-        listTileTheme: ListTileThemeData(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8.0),
+    // DynamicColorBuilder provides the device's color scheme.
+    return DynamicColorBuilder(
+      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        return MaterialApp(
+          title: 'Inventory Manager',
+          theme: ThemeData(
+            // Use the dynamic color scheme if available, otherwise use the default.
+            colorScheme: lightDynamic ?? _defaultColorScheme,
+            useMaterial3: true,
+            listTileTheme: ListTileThemeData(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+            ),
           ),
-        ),
-      ),
-      home: const HomePage(),
+          // You can also configure a dark theme similarly:
+          darkTheme: ThemeData(
+            colorScheme: darkDynamic ?? _defaultColorScheme.copyWith(brightness: Brightness.dark),
+            useMaterial3: true,
+          ),
+          home: const HomePage(),
+        );
+      },
     );
   }
 }

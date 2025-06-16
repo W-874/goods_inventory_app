@@ -37,6 +37,8 @@ dependencies:
   sqflite: ^2.4.1
   meta: ^1.15.0
   intl: ^0.20.2
+  dynamic_color: ^1.7.0 # Add this line
+
 
 dev_dependencies:
   flutter_test:

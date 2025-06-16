@@ -34,9 +34,11 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
 
   Future<void> _loadAllGoods() async {
     final goods = await _dbHelper.getAllGoods();
-    setState(() {
-      _allGoods = goods;
-    });
+    if (mounted) {
+      setState(() {
+        _allGoods = goods;
+      });
+    }
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -60,7 +62,9 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
         int.parse(_quantityController.text),
       );
       _showSnackBar('生产成功开始!');
-      Navigator.pop(context); // Go back to the main page after success
+      if (mounted) {
+        Navigator.pop(context); // Go back to the main page after success
+      }
     } catch (e) {
       _showSnackBar('Error: ${e.toString().replaceFirst("Exception: ", "")}', isError: true);
     } finally {
@@ -141,18 +145,42 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
                 const SizedBox(height: 24),
                 if (_selectedGood != null)
                   FutureBuilder<List<BillOfMaterialEntry>>(
-                    future: _dbHelper.getBillOfMaterialEntriesForGood(_selectedGood!.goodsID!),
+                    future: _dbHelper.getBillOfMaterialsWithNames(_selectedGood!.goodsID!),
                     builder: (context, snapshot) {
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return const Text('未找到所需要的生产原料');
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: CircularProgressIndicator(),
+                          ));
                       }
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('所需原料:', style: Theme.of(context).textTheme.titleMedium),
-                           for (var item in snapshot.data!)
-                              Text('- 原料: ${item.rawMaterialName ?? 'Unknown Material'}, 数量: ${item.quantityNeeded}'),
-                        ],
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return Card(
+                            color: Colors.amber.shade50,
+                            child: Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Text('No Bill of Materials has been defined for this good.', textAlign: TextAlign.center),
+                            ),
+                        );
+                      }
+                      return Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Required Materials:', style: Theme.of(context).textTheme.titleMedium),
+                               const SizedBox(height: 8),
+                               for (var item in snapshot.data!)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8.0, bottom: 4.0),
+                                    child: Text(
+                                      '- ${item.rawMaterialName ?? 'Unknown Material'} (Qty: ${item.quantityNeeded})',
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  ),
+                            ],
+                          ),
+                        ),
                       );
                     }
                   )

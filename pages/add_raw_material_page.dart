@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:goods_inventory_app/database_helper.dart';
 import 'package:goods_inventory_app/data_class.dart';
+import 'package:goods_inventory_app/db_constants.dart';
 
 class AddRawMaterialPage extends StatefulWidget {
   const AddRawMaterialPage({super.key});

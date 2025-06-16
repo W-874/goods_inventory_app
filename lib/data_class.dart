@@ -1,6 +1,5 @@
-import 'database_helper.dart';
 import 'package:meta/meta.dart';
-
+import 'db_constants.dart';
 
 class Goods{
   int? goodsID = 0;
