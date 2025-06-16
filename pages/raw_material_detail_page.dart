@@ -1,0 +1,82 @@
+// lib/pages/raw_material_detail_page.dart
+import 'package:flutter/material.dart';
+import '../lib/databaseHelper.dart';
+import '../lib/dataClass.dart';
+
+class RawMaterialDetailPage extends StatelessWidget {
+  final RawMaterials material;
+
+  const RawMaterialDetailPage({super.key, required this.material});
+
+  @override
+  Widget build(BuildContext context) {
+    final dbHelper = DatabaseHelper.instance;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(material.name),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Material Details', style: textTheme.titleLarge),
+                      const Divider(),
+                      Text('ID: ${material.materialID}', style: textTheme.bodyLarge),
+                      const SizedBox(height: 8),
+                      Text('Stock Quantity: ${material.quality}', style: textTheme.bodyLarge),
+                      const SizedBox(height: 8),
+                      Text('Price: \$${material.price.toStringAsFixed(2)}', style: textTheme.bodyLarge),
+                      if (material.description != null && material.description!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text('Description: ${material.description}', style: textTheme.bodyLarge),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text('Used In These Goods', style: textTheme.titleLarge),
+              const SizedBox(height: 8),
+              FutureBuilder<List<Goods>>(
+                future: dbHelper.getGoodsUsingRawMaterial(material.materialID!),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Text('This raw material is not currently used in any goods.');
+                  }
+                  return Card(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: snapshot.data!.length,
+                      itemBuilder: (context, index) {
+                        final good = snapshot.data![index];
+                        return ListTile(
+                          title: Text(good.name),
+                          trailing: Text('ID: ${good.goodsID}'),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
