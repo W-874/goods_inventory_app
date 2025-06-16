@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Inventory Manager',
+      title: '库存管理',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -82,7 +82,7 @@ class _HomePageState extends State<HomePage> {
             children: <Widget>[
               ListTile(
                 leading: const Icon(Icons.add_shopping_cart),
-                title: const Text('Start New Production'),
+                title: const Text('新生产'),
                 onTap: () async {
                   Navigator.pop(context);
                   await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddPendingGoodPage()));
@@ -92,7 +92,7 @@ class _HomePageState extends State<HomePage> {
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.inventory_2_outlined),
-                title: const Text('Add Good'),
+                title: const Text('增加商品'),
                 onTap: () async {
                   Navigator.pop(context);
                   await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddGoodPage()));
@@ -101,7 +101,7 @@ class _HomePageState extends State<HomePage> {
               ),
               ListTile(
                 leading: const Icon(Icons.layers_outlined),
-                title: const Text('Add Raw Material'),
+                title: const Text('增加原料'),
                 onTap: () async {
                   Navigator.pop(context);
                   await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddRawMaterialPage()));
@@ -128,14 +128,14 @@ class _HomePageState extends State<HomePage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Update Quantity for $itemName'),
+          title: Text('更新 $itemName 的数量'),
           content: Form(
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Current Quantity: $currentQuantity'),
+                Text('当前数量: $currentQuantity'),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: controller,
@@ -148,14 +148,14 @@ class _HomePageState extends State<HomePage> {
                   keyboardType: const TextInputType.numberWithOptions(signed: true),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter a value';
+                      return '请输入';
                     }
                     final change = int.tryParse(value);
                     if (change == null) {
-                      return 'Please enter a valid number';
+                      return '请输入数字';
                     }
                     if (currentQuantity + change < 0) {
-                      return 'Stock cannot go below zero';
+                      return '库存不能为负数';
                     }
                     return null;
                   },
@@ -165,13 +165,13 @@ class _HomePageState extends State<HomePage> {
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Cancel'),
+              child: const Text('取消'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             ElevatedButton(
-              child: const Text('Save'),
+              child: const Text('保存'),
               onPressed: () async {
                 if (formKey.currentState?.validate() ?? false) {
                   final change = int.tryParse(controller.text) ?? 0;
@@ -187,7 +187,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// Shows a confirmation dialog before deleting an item.
-  Future<bool> _showDeleteConfirmationDialog({String title = 'Are you sure?', String content = 'This action cannot be undone.'}) async {
+  Future<bool> _showDeleteConfirmationDialog({String title = '你确定吗?', String content = '该操作不能撤销.'}) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -196,12 +196,12 @@ class _HomePageState extends State<HomePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Confirm'),
+            child: const Text('确认'),
           ),
         ],
       ),
@@ -213,7 +213,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildGoodsList() {
     if (_goods.isEmpty) {
-      return const Center(child: Text('No goods found.\nPress + to add one.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)));
+      return const Center(child: Text('未找到商品.\n按“ + ”号来添加.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)));
     }
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
@@ -224,13 +224,13 @@ class _HomePageState extends State<HomePage> {
           margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
             title: Text(good.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('Qty: ${good.quality} | Price: \$${good.price.toStringAsFixed(2)}'),
+            subtitle: Text('数量: ${good.quality} | 价格: \$${good.price.toStringAsFixed(2)}'),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
                   icon: Icon(Icons.edit_note, color: Theme.of(context).colorScheme.primary),
-                  tooltip: 'Update Quantity',
+                  tooltip: '更新数量',
                   onPressed: () {
                     _showUpdateQuantityDialog(
                       itemName: good.name,
@@ -247,7 +247,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                  tooltip: 'Delete',
+                  tooltip: '删除',
                   onPressed: () async {
                     if (await _showDeleteConfirmationDialog()) {
                       await dbHelper.deleteGood(good.goodsID!);
@@ -265,7 +265,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildRawMaterialsList() {
     if (_rawMaterials.isEmpty) {
-      return const Center(child: Text('No raw materials found.\nPress + to add one.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)));
+      return const Center(child: Text('未找到原料.\n按“ + ”号来添加.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)));
     }
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
@@ -276,13 +276,13 @@ class _HomePageState extends State<HomePage> {
           margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
             title: Text(material.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('Qty: ${material.quality}'),
+            subtitle: Text('数量: ${material.quality}'),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
                   icon: Icon(Icons.edit_note, color: Theme.of(context).colorScheme.primary),
-                  tooltip: 'Update Quantity',
+                  tooltip: '更新数量',
                   onPressed: () {
                      _showUpdateQuantityDialog(
                       itemName: material.name,
@@ -299,7 +299,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                  tooltip: 'Delete',
+                  tooltip: '删除',
                   onPressed: () async {
                      if (await _showDeleteConfirmationDialog()) {
                       await dbHelper.deleteRawMaterial(material.materialID!);
@@ -317,7 +317,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildPendingGoodsList() {
     if (_pendingGoods.isEmpty) {
-      return const Center(child: Text('No goods are currently in production.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)));
+      return const Center(child: Text('目前没有正在进行的生产.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)));
     }
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
@@ -328,16 +328,16 @@ class _HomePageState extends State<HomePage> {
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
-            title: Text(pending.goodName ?? 'Unknown Good', style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('Qty: ${pending.quantityInProduction} | Started: $formattedDate'),
+            title: Text(pending.goodName ?? '未知商品', style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('数量: ${pending.quantityInProduction} | 开始于: $formattedDate'),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
                   icon: const Icon(Icons.check_circle_outline, color: Colors.green),
-                  tooltip: 'Complete Production',
+                  tooltip: '完成生产',
                   onPressed: () async {
-                    if(await _showDeleteConfirmationDialog(title: 'Complete Production?', content: 'This will add ${pending.quantityInProduction} to "${pending.goodName}" stock.')) {
+                    if(await _showDeleteConfirmationDialog(title: '完成该生产？', content: 'This will add ${pending.quantityInProduction} to "${pending.goodName}" stock.')) {
                         await dbHelper.completeProduction(pending);
                         _refreshData();
                     }
@@ -345,9 +345,9 @@ class _HomePageState extends State<HomePage> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.cancel_outlined, color: Colors.redAccent),
-                  tooltip: 'Cancel Production',
+                  tooltip: '取消生产',
                   onPressed: () async {
-                    if (await _showDeleteConfirmationDialog(title: 'Cancel Production?', content: 'This will return consumed raw materials to stock.')) {
+                    if (await _showDeleteConfirmationDialog(title: '取消该生产？', content: 'This will return consumed raw materials to stock.')) {
                       await dbHelper.cancelProduction(pending);
                       _refreshData();
                     }
@@ -367,13 +367,13 @@ class _HomePageState extends State<HomePage> {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Inventory Dashboard'),
+          title: const Text('库存面板'),
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           bottom: const TabBar(
             tabs: [
-              Tab(icon: Icon(Icons.build_circle_outlined), text: 'In Production'),
-              Tab(icon: Icon(Icons.inventory_2), text: 'Goods'),
-              Tab(icon: Icon(Icons.layers), text: 'Raw Materials'),
+              Tab(icon: Icon(Icons.build_circle_outlined), text: '生产中'),
+              Tab(icon: Icon(Icons.inventory_2), text: '商品'),
+              Tab(icon: Icon(Icons.layers), text: '原料'),
             ],
           ),
         ),
@@ -388,7 +388,7 @@ class _HomePageState extends State<HomePage> {
               ),
         floatingActionButton: FloatingActionButton(
           onPressed: () => _showAddOptions(context),
-          tooltip: 'Add...',
+          tooltip: '增加...',
           child: const Icon(Icons.add),
         ),
       ),

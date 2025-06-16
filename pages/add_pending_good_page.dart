@@ -59,7 +59,7 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
         _selectedGood!.goodsID!,
         int.parse(_quantityController.text),
       );
-      _showSnackBar('Production started successfully!');
+      _showSnackBar('生产成功开始!');
       Navigator.pop(context); // Go back to the main page after success
     } catch (e) {
       _showSnackBar('Error: ${e.toString().replaceFirst("Exception: ", "")}', isError: true);
@@ -74,7 +74,7 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Start New Production'),
+        title: const Text('开始新生产'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SingleChildScrollView(
@@ -88,7 +88,7 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
                 DropdownButtonFormField<Goods>(
                   value: _selectedGood,
                   decoration: const InputDecoration(
-                    labelText: 'Select Good to Produce',
+                    labelText: '选择要生产的商品',
                     border: OutlineInputBorder(),
                   ),
                   items: _allGoods.map((good) {
@@ -102,23 +102,23 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
                       _selectedGood = newValue;
                     });
                   },
-                  validator: (value) => value == null ? 'Please select a good' : null,
+                  validator: (value) => value == null ? '请选择一个商品' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _quantityController,
                   decoration: const InputDecoration(
-                    labelText: 'Quantity to Produce',
+                    labelText: '生产数量',
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter a quantity';
+                      return '请输入数量';
                     }
                     final qty = int.tryParse(value);
                     if (qty == null || qty <= 0) {
-                      return 'Please enter a positive number';
+                      return '生产数量不能为负';
                     }
                     return null;
                   },
@@ -136,7 +136,7 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
                           width: 24,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('Start Production'),
+                      : const Text('开始生产'),
                 ),
                 const SizedBox(height: 24),
                 if (_selectedGood != null)
@@ -144,14 +144,14 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
                     future: _dbHelper.getBillOfMaterialEntriesForGood(_selectedGood!.goodsID!),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return const Text('No bill of materials found for this good.');
+                        return const Text('未找到所需要的生产原料');
                       }
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Required Materials:', style: Theme.of(context).textTheme.titleMedium),
+                          Text('所需原料:', style: Theme.of(context).textTheme.titleMedium),
                            for (var item in snapshot.data!)
-                              Text('- Material ID: ${item.rawMaterialId}, Qty: ${item.quantityNeeded}'),
+                              Text('- 原料ID: ${item.rawMaterialId}, 数量: ${item.quantityNeeded}'),
                         ],
                       );
                     }

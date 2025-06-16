@@ -76,11 +76,11 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Select Associated Goods'),
+              title: const Text('选择关联商品'),
               content: SizedBox(
                 width: double.maxFinite,
                 child: _allGoods.isEmpty
-                    ? const Text('No goods found. Please add a good first.')
+                    ? const Text('未找到商品, 请先添加至少一个商品.')
                     : ListView.builder(
                         itemCount: _allGoods.length,
                         itemBuilder: (context, index) {
@@ -105,7 +105,7 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+                  child: const Text('取消'),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -129,7 +129,7 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
                     });
                     Navigator.pop(context);
                   },
-                  child: const Text('Done'),
+                  child: const Text('完成'),
                 ),
               ],
             );
@@ -149,7 +149,7 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
     // Also validate that if goods are selected, their quantities are entered
     for (var controller in _quantityNeededControllers.values) {
         if(controller.text.isEmpty || int.tryParse(controller.text) == null) {
-            _showSnackBar('Please enter a valid quantity for all selected goods.', isError: true);
+            _showSnackBar('请为所有选择的商品填写正确的数量.', isError: true);
             return;
         }
     }
@@ -184,7 +184,7 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
         }
 
         if (newRawMaterialId <= 0) {
-          throw Exception("Failed to create the new raw material.");
+          throw Exception("创建新原料失败.");
         }
 
         // --- Part 2: Create Bill of Material Entries ---
@@ -200,7 +200,7 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
         }
       });
 
-      _showSnackBar('Raw Material "${_nameController.text}" saved successfully!');
+      _showSnackBar('原料 "${_nameController.text}" 保存成功!');
       
       // Clear all forms and state
       _formKey.currentState?.reset();
@@ -236,7 +236,7 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add New Raw Material'),
+        title: const Text('增加新原料'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SingleChildScrollView(
@@ -248,50 +248,50 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 // --- Raw Material Details Section ---
-                Text('Raw Material Details', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 16),
+                //Text('新原料细节', style: Theme.of(context).textTheme.titleLarge),
+                //const SizedBox(height: 16),
                 TextFormField(
                   controller: _rawMaterialIdController,
-                  decoration: const InputDecoration(labelText: 'Raw Material ID (Optional)', border: OutlineInputBorder(), hintText: 'Leave empty to auto-generate'),
+                  decoration: const InputDecoration(labelText: '原料ID (可选)', border: OutlineInputBorder(), hintText: '留空来自动生成'),
                   keyboardType: TextInputType.number,
-                  validator: (v) => v != null && v.isNotEmpty && int.tryParse(v) == null ? 'Must be a valid number' : null,
+                  validator: (v) => v != null && v.isNotEmpty && int.tryParse(v) == null ? '请输入有效数字' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: '原料名称', border: OutlineInputBorder()),
                   textCapitalization: TextCapitalization.words,
-                  validator: (v) => v == null || v.isEmpty ? 'Please enter a name' : null,
+                  validator: (v) => v == null || v.isEmpty ? '请输入名称' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _quantityController,
-                  decoration: const InputDecoration(labelText: 'Initial Quantity', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: '当前数量', border: OutlineInputBorder()),
                   keyboardType: TextInputType.number,
-                  validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? 'Please enter a valid quantity' : null,
+                  validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? '请输入有效数字' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _priceController,
-                  decoration: const InputDecoration(labelText: 'Price', border: OutlineInputBorder(), prefixText: '\$'),
+                  decoration: const InputDecoration(labelText: '原料价格', border: OutlineInputBorder(), prefixText: '\$'),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  validator: (v) => v == null || v.isEmpty || double.tryParse(v) == null ? 'Please enter a valid price' : null,
+                  validator: (v) => v == null || v.isEmpty || double.tryParse(v) == null ? '请输入有效价格' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _descriptionController,
-                  decoration: const InputDecoration(labelText: 'Description (Optional)', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: '原料描述 (可选)', border: OutlineInputBorder()),
                   maxLines: 3,
                   // No validator needed as it's optional.
                 ),
                 const Divider(height: 40, thickness: 1),
 
                 // --- Bill of Materials Section ---
-                Text('Component In (Optional)', style: Theme.of(context).textTheme.titleLarge),
+                Text('被什么商品需要？ (可选)', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 16),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.add_link),
-                  label: const Text('Select Goods...'),
+                  label: const Text('选择商品...'),
                   onPressed: _showGoodsSelectionDialog,
                 ),
                 const SizedBox(height: 16),
@@ -313,7 +313,7 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
                               width: 120,
                               child: TextFormField(
                                 controller: _quantityNeededControllers[good.goodsID],
-                                decoration: const InputDecoration(labelText: 'Qty Needed', border: OutlineInputBorder()),
+                                decoration: const InputDecoration(labelText: '需要数量', border: OutlineInputBorder()),
                                 keyboardType: TextInputType.number,
                                 validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? 'Req.' : null,
                               ),
@@ -331,7 +331,7 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
                   style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), textStyle: const TextStyle(fontSize: 18)),
                   child: _isLoading
                       ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Save Raw Material'),
+                      : const Text('保存原料'),
                 ),
               ],
             ),

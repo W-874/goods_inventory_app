@@ -73,7 +73,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
         final dbHelper = DatabaseHelper.instance;
         await dbHelper.createGood(good);
         
-        _showSnackBar('Good "${good.name}" saved successfully!');
+        _showSnackBar('商品 "${good.name}" 保存成功!');
         
         // Clear the form fields after successful save.
         _formKey.currentState?.reset();
@@ -102,7 +102,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add New Good'),
+        title: const Text('增加新商品'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SingleChildScrollView(
@@ -117,9 +117,9 @@ class _AddGoodPageState extends State<AddGoodPage> {
                 TextFormField(
                   controller: _goodsIdController,
                   decoration: const InputDecoration(
-                    labelText: 'Goods ID (Optional)',
+                    labelText: '商品ID (可选)',
                     border: OutlineInputBorder(),
-                    hintText: 'Leave empty for auto-generation',
+                    hintText: '留空来自动生成',
                   ),
                   keyboardType: TextInputType.number,
                   validator: (value) {
@@ -127,7 +127,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
                     if (value != null &&
                         value.isNotEmpty &&
                         int.tryParse(value) == null) {
-                      return 'Please enter a valid number';
+                      return '请输入有效数字';
                     }
                     return null;
                   },
@@ -138,14 +138,14 @@ class _AddGoodPageState extends State<AddGoodPage> {
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Name',
+                    labelText: '商品名称',
                     border: OutlineInputBorder(),
                     hintText: 'e.g., Deluxe Widget',
                   ),
                    textCapitalization: TextCapitalization.words,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter a name';
+                      return '请输入商品名称';
                     }
                     return null;
                   },
@@ -156,16 +156,16 @@ class _AddGoodPageState extends State<AddGoodPage> {
                 TextFormField(
                   controller: _quantityController,
                   decoration: const InputDecoration(
-                    labelText: 'Remaining Quantity',
+                    labelText: '当前数量',
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter the quantity';
+                      return '请输入数量';
                     }
                     if (int.tryParse(value) == null) {
-                      return 'Please enter a valid number';
+                      return '请输入有效数字';
                     }
                     return null;
                   },
@@ -176,17 +176,17 @@ class _AddGoodPageState extends State<AddGoodPage> {
                 TextFormField(
                   controller: _priceController,
                   decoration: const InputDecoration(
-                    labelText: 'Price',
+                    labelText: '商品价格',
                     border: OutlineInputBorder(),
                     prefixText: '\$',
                   ),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter the price';
+                      return '请输入价格';
                     }
                     if (double.tryParse(value) == null) {
-                      return 'Please enter a valid price';
+                      return '请输入有效价格';
                     }
                     return null;
                   },
@@ -197,7 +197,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
                 TextFormField(
                   controller: _descriptionController,
                   decoration: const InputDecoration(
-                    labelText: 'Description (Optional)',
+                    labelText: '商品描述 (可选)',
                     border: OutlineInputBorder(),
                   ),
                   maxLines: 3,
@@ -218,7 +218,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
                           width: 24,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('Save Good'),
+                      : const Text('保存商品'),
                 ),
               ],
             ),
