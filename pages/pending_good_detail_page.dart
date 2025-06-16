@@ -32,21 +32,21 @@ class PendingGoodDetailPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Production Order Details', style: textTheme.titleLarge),
+                      Text('详细信息', style: textTheme.titleLarge),
                       const Divider(),
-                      Text('Producing: ${pendingGood.goodName}', style: textTheme.bodyLarge),
+                      Text('正在生产: ${pendingGood.goodName}', style: textTheme.bodyLarge),
                       const SizedBox(height: 8),
-                      Text('Quantity: ${pendingGood.quantityInProduction}', style: textTheme.bodyLarge),
+                      Text('数量: ${pendingGood.quantityInProduction}', style: textTheme.bodyLarge),
                       const SizedBox(height: 8),
-                      Text('Started: $formattedDate', style: textTheme.bodyLarge),
+                      Text('开始于: $formattedDate', style: textTheme.bodyLarge),
                       const SizedBox(height: 8),
-                      Text('Status: In Production', style: textTheme.bodyLarge?.copyWith(color: Colors.blue.shade700)),
+                      Text('状态：正在生产', style: textTheme.bodyLarge?.copyWith(color: Colors.blue.shade700)),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              Text('Consumed Raw Materials', style: textTheme.titleLarge),
+              Text('消耗的原料', style: textTheme.titleLarge),
               const SizedBox(height: 8),
               FutureBuilder<List<BillOfMaterialEntry>>(
                 future: dbHelper.getBillOfMaterialsWithNames(pendingGood.goodsId),
@@ -55,7 +55,7 @@ class PendingGoodDetailPage extends StatelessWidget {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Text('Could not determine consumed materials.');
+                    return const Text('不能确定消耗的原料.');
                   }
                   return Card(
                     child: ListView.builder(
@@ -65,8 +65,8 @@ class PendingGoodDetailPage extends StatelessWidget {
                       itemBuilder: (context, index) {
                         final bomEntry = snapshot.data![index];
                         return ListTile(
-                          title: Text(bomEntry.rawMaterialName ?? 'Unknown Material'),
-                          trailing: Text('Total Used: ${bomEntry.quantityNeeded * pendingGood.quantityInProduction}'),
+                          title: Text(bomEntry.rawMaterialName ?? '未知原料'),
+                          trailing: Text('共消耗: ${bomEntry.quantityNeeded * pendingGood.quantityInProduction}'),
                         );
                       },
                     ),

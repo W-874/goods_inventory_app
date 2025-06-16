@@ -30,23 +30,23 @@ class RawMaterialDetailPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Material Details', style: textTheme.titleLarge),
+                      Text('详细信息', style: textTheme.titleLarge),
                       const Divider(),
                       Text('ID: ${material.materialID}', style: textTheme.bodyLarge),
                       const SizedBox(height: 8),
-                      Text('Stock Quantity: ${material.quality}', style: textTheme.bodyLarge),
+                      Text('数量: ${material.quality}', style: textTheme.bodyLarge),
                       const SizedBox(height: 8),
-                      Text('Price: \$${material.price.toStringAsFixed(2)}', style: textTheme.bodyLarge),
+                      Text('价格: \$${material.price.toStringAsFixed(2)}', style: textTheme.bodyLarge),
                       if (material.description != null && material.description!.isNotEmpty) ...[
                         const SizedBox(height: 8),
-                        Text('Description: ${material.description}', style: textTheme.bodyLarge),
+                        Text('描述: ${material.description}', style: textTheme.bodyLarge),
                       ],
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              Text('Used In These Goods', style: textTheme.titleLarge),
+              Text('被使用于', style: textTheme.titleLarge),
               const SizedBox(height: 8),
               FutureBuilder<List<Goods>>(
                 future: dbHelper.getGoodsUsingRawMaterial(material.materialID!),
@@ -55,7 +55,7 @@ class RawMaterialDetailPage extends StatelessWidget {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Text('This raw material is not currently used in any goods.');
+                    return const Text('这个原料目前未被任何商品使用.');
                   }
                   return Card(
                     child: ListView.builder(
