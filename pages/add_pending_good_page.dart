@@ -151,7 +151,7 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
                         children: [
                           Text('所需原料:', style: Theme.of(context).textTheme.titleMedium),
                            for (var item in snapshot.data!)
-                              Text('- 原料ID: ${item.rawMaterialId}, 数量: ${item.quantityNeeded}'),
+                              Text('- 原料: ${item.rawMaterialName ?? 'Unknown Material'}, 数量: ${item.quantityNeeded}'),
                         ],
                       );
                     }

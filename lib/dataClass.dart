@@ -160,11 +160,13 @@ class BillOfMaterialEntry {
   final int goodsId;
   final int rawMaterialId;
   final int quantityNeeded;
+  final String? rawMaterialName; // Added field for display
 
   const BillOfMaterialEntry({
     required this.goodsId,
     required this.rawMaterialId,
     required this.quantityNeeded,
+    this.rawMaterialName,
   });
 
   factory BillOfMaterialEntry.fromMap(Map<String, dynamic> map) {
@@ -172,6 +174,7 @@ class BillOfMaterialEntry {
       goodsId: map[columnGoodsId] as int,
       rawMaterialId: map[columnRawMaterialId] as int,
       quantityNeeded: map[columnQuantityNeeded] as int,
+      rawMaterialName: map[columnName] as String?,
     );
   }
 
@@ -188,17 +191,19 @@ class BillOfMaterialEntry {
     int? goodsId,
     int? rawMaterialId,
     int? quantityNeeded,
+    String? rawMaterialName,
   }) {
     return BillOfMaterialEntry(
       goodsId: goodsId ?? this.goodsId,
       rawMaterialId: rawMaterialId ?? this.rawMaterialId,
       quantityNeeded: quantityNeeded ?? this.quantityNeeded,
+      rawMaterialName: rawMaterialName ?? this.rawMaterialName,
     );
   }
 
   @override
   String toString() {
-    return 'BillOfMaterialEntry(goodsId: $goodsId, rawMaterialId: $rawMaterialId, quantityNeeded: $quantityNeeded)';
+    return 'BillOfMaterialEntry(goodsId: $goodsId, rawMaterialId: $rawMaterialId, quantityNeeded: $quantityNeeded, rawMaterialName: $rawMaterialName)';
   }
 
   @override
@@ -207,14 +212,16 @@ class BillOfMaterialEntry {
     return other is BillOfMaterialEntry &&
         other.goodsId == goodsId &&
         other.rawMaterialId == rawMaterialId &&
-        other.quantityNeeded == quantityNeeded;
+        other.quantityNeeded == quantityNeeded &&
+        other.rawMaterialName == rawMaterialName;
   }
 
   @override
   int get hashCode {
     return goodsId.hashCode ^
         rawMaterialId.hashCode ^
-        quantityNeeded.hashCode;
+        quantityNeeded.hashCode ^
+        rawMaterialName.hashCode;
   }
 }
 

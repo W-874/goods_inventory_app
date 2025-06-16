@@ -287,6 +287,27 @@ class DatabaseHelper {
       );
   }
 
+    Future<List<BillOfMaterialEntry>> getBillOfMaterialsWithNames(int goodsId) async {
+    Database db = await instance.database;
+    final String query = '''
+      SELECT
+        bom.$columnGoodsId,
+        bom.$columnRawMaterialId,
+        bom.$columnQuantityNeeded,
+        rm.$columnName
+      FROM
+        $tableBillOfMaterials bom
+      JOIN
+        $tableRawMaterials rm ON bom.$columnRawMaterialId = rm.$columnRawMaterialId
+      WHERE
+        bom.$columnGoodsId = ?
+    ''';
+    final List<Map<String, dynamic>> maps = await db.rawQuery(query, [goodsId]);
+    return List.generate(maps.length, (i) {
+      return BillOfMaterialEntry.fromMap(maps[i]);
+    });
+  }
+
   // --- PendingGoods Table Operations ---
 
   Future<List<PendingGood>> getAllPendingGoods() async {
@@ -382,6 +403,19 @@ class DatabaseHelper {
         where: '$columnPendingId = ?',
         whereArgs: [pendingGood.pendingId],
       );
+    });
+  }
+
+    Future<List<Goods>> getGoodsUsingRawMaterial(int rawMaterialId) async {
+    final db = await instance.database;
+    final String query = '''
+      SELECT g.* FROM $tableGoods g
+      JOIN $tableBillOfMaterials bom ON g.$columnGoodsId = bom.$columnGoodsId
+      WHERE bom.$columnRawMaterialId = ?
+    ''';
+    final List<Map<String, dynamic>> maps = await db.rawQuery(query, [rawMaterialId]);
+    return List.generate(maps.length, (i) {
+      return Goods.fromMap(maps[i]);
     });
   }
 
