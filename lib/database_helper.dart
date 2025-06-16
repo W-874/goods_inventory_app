@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
-import 'dataClass.dart';
+import 'data_class.dart';
 
 
 // --- Table and Column Constants (as defined before) ---

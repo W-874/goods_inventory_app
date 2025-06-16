@@ -1,7 +1,7 @@
 // lib/pages/raw_material_detail_page.dart
 import 'package:flutter/material.dart';
-import '../lib/databaseHelper.dart';
-import '../lib/dataClass.dart';
+import 'package:goods_inventory_app/database_helper.dart';
+import 'package:goods_inventory_app/data_class.dart';
 
 class RawMaterialDetailPage extends StatelessWidget {
   final RawMaterials material;

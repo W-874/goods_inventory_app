@@ -1,8 +1,8 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // Add to pubspec.yaml: intl: ^0.18.1
-import '../lib/databaseHelper.dart';
-import '../lib/dataClass.dart';
+import 'package:goods_inventory_app/database_helper.dart';
+import 'package:goods_inventory_app/data_class.dart';
 import 'add_good_page.dart';
 import 'add_raw_material_page.dart';
 import 'add_pending_good_page.dart';
