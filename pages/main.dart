@@ -6,6 +6,9 @@ import '../lib/dataClass.dart';
 import 'add_good_page.dart';
 import 'add_raw_material_page.dart';
 import 'add_pending_good_page.dart';
+import 'good_detail_page.dart';
+import 'raw_material_detail_page.dart';
+import 'pending_good_detail_page.dart';
 
 void main() {
   // Ensure that plugin services are initialized for database path.
@@ -209,11 +212,11 @@ class _HomePageState extends State<HomePage> {
     return result ?? false;
   }
 
-  // --- UI Builder Methods ---
+// --- UI Builder Methods ---
 
   Widget _buildGoodsList() {
     if (_goods.isEmpty) {
-      return const Center(child: Text('未找到商品.\n按“ + ”号来添加.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)));
+        return const Center(child: Text('未找到商品.\n按“ + ”号来添加.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)));
     }
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
@@ -225,6 +228,12 @@ class _HomePageState extends State<HomePage> {
           child: ListTile(
             title: Text(good.name, style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('数量: ${good.quality} | 价格: \$${good.price.toStringAsFixed(2)}'),
+            onTap: () { // <-- ADDED
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => GoodDetailPage(good: good)),
+              );
+            },
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -276,7 +285,13 @@ class _HomePageState extends State<HomePage> {
           margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
             title: Text(material.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('数量: ${material.quality}'),
+            subtitle: Text('数量: ${material.quality} | 价格: \$${material.price.toStringAsFixed(2)}'),
+            onTap: () { // <-- ADDED
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => RawMaterialDetailPage(material: material)),
+              );
+            },
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -330,6 +345,12 @@ class _HomePageState extends State<HomePage> {
           child: ListTile(
             title: Text(pending.goodName ?? '未知商品', style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('数量: ${pending.quantityInProduction} | 开始于: $formattedDate'),
+            onTap: () { // <-- ADDED
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => PendingGoodDetailPage(pendingGood: pending)),
+              );
+            },
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
