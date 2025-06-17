@@ -247,7 +247,7 @@ class _HomePageState extends State<HomePage> {
           margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
             title: Text(good.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('数量: ${good.quality} | 价格: \$${good.price.toStringAsFixed(2)}'),
+            subtitle: Text('数量: ${good.quality} | 价格: ¥${good.price.toStringAsFixed(2)}'),
             onTap: () { // <-- ADDED
               Navigator.push(
                 context,
@@ -305,7 +305,7 @@ class _HomePageState extends State<HomePage> {
           margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
             title: Text(material.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('数量: ${material.quality} | 价格: \$${material.price.toStringAsFixed(2)}'),
+            subtitle: Text('数量: ${material.quality} | 价格: ¥${material.price.toStringAsFixed(2)}'),
             onTap: () { // <-- ADDED
               Navigator.push(
                 context,

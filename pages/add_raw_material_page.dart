@@ -274,7 +274,7 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _priceController,
-                  decoration: const InputDecoration(labelText: '原料价格', border: OutlineInputBorder(), prefixText: '\$'),
+                  decoration: const InputDecoration(labelText: '原料价格', border: OutlineInputBorder(), prefixText: '¥'),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   validator: (v) => v == null || v.isEmpty || double.tryParse(v) == null ? '请输入有效价格' : null,
                 ),

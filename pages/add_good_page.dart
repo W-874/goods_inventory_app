@@ -178,7 +178,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
                   decoration: const InputDecoration(
                     labelText: '商品价格',
                     border: OutlineInputBorder(),
-                    prefixText: '\$',
+                    prefixText: '¥',
                   ),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   validator: (value) {
