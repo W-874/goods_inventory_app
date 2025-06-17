@@ -38,6 +38,7 @@ dependencies:
   meta: ^1.15.0
   intl: ^0.20.2
   dynamic_color: ^1.7.0 # Add this line
+  sqflite_common_ffi: ^2.3.6
 
 
 dev_dependencies:
