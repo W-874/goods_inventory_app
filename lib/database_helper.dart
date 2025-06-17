@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'data_class.dart';
 import 'db_constants.dart';
 
@@ -22,6 +24,11 @@ class DatabaseHelper {
 
   // Opens the database (and creates it if it doesn't exist)
   Future<Database> _initDB() async {
+    // Initialize sqflite for FFI support
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        sqfliteFfiInit();
+        databaseFactory = databaseFactoryFfi;
+    } 
     String path = join(await getDatabasesPath(), _databaseName);
     return await openDatabase(
       path,
