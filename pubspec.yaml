@@ -39,6 +39,7 @@ dependencies:
   intl: ^0.20.2
   dynamic_color: ^1.7.0 # Add this line
   sqflite_common_ffi: ^2.3.6
+  sqflite_common_ffi_web: ^1.0.0
 
 
 dev_dependencies:
