@@ -188,6 +188,52 @@ class DatabaseHelper {
     return List.generate(maps.length, (i) => Goods.fromMap(maps[i]));
   }
 
+  /// Updates a Good and replaces its entire Bill of Materials in a single transaction.
+  Future<void> updateGoodAndBOM(Goods good, List<BillOfMaterialEntry> bomEntries) async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      // 1. Update the good itself
+      await txn.update(tableGoods, good.toMap(), where: '$columnGoodsId = ?', whereArgs: [good.goodsID]);
+      
+      // 2. Delete all old BOM entries for this good
+      await txn.delete(tableBillOfMaterials, where: '$columnGoodsId = ?', whereArgs: [good.goodsID]);
+
+      // 3. Insert all the new BOM entries
+      for (final entry in bomEntries) {
+        await txn.insert(tableBillOfMaterials, entry.toMap());
+      }
+    });
+  }
+
+  Future<List<BillOfMaterialEntry>> getBillOfMaterialEntriesForRawMaterial(int rawMaterialId) async {
+    Database db = await instance.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      tableBillOfMaterials,
+      where: '$columnRawMaterialId = ?',
+      whereArgs: [rawMaterialId],
+    );
+    return List.generate(maps.length, (i) {
+      return BillOfMaterialEntry.fromMap(maps[i]);
+    });
+  }
+
+  /// Updates a RawMaterial and replaces all BOM entries it's a part of.
+  Future<void> updateRawMaterialAndBOM(RawMaterials material, List<BillOfMaterialEntry> bomEntries) async {
+      final db = await instance.database;
+      await db.transaction((txn) async {
+          // 1. Update the raw material
+          await txn.update(tableRawMaterials, material.toMap(), where: '$columnRawMaterialId = ?', whereArgs: [material.materialID]);
+
+          // 2. Delete all old BOM entries for this material
+          await txn.delete(tableBillOfMaterials, where: '$columnRawMaterialId = ?', whereArgs: [material.materialID]);
+
+          // 3. Insert all the new BOM entries
+          for (final entry in bomEntries) {
+              await txn.insert(tableBillOfMaterials, entry.toMap());
+          }
+      });
+  }
+
 
   // --- PendingGoods Table Operations ---
 

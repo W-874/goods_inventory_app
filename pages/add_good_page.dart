@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:goods_inventory_app/database_helper.dart';
 import 'package:goods_inventory_app/data_class.dart';
+import 'package:goods_inventory_app/db_constants.dart';
+import 'package:sqflite/sqflite.dart';
 
 class AddGoodPage extends StatefulWidget {
   const AddGoodPage({super.key});
@@ -13,6 +15,7 @@ class AddGoodPage extends StatefulWidget {
 class _AddGoodPageState extends State<AddGoodPage> {
   // A global key that uniquely identifies the Form widget and allows validation.
   final _formKey = GlobalKey<FormState>();
+  final _dbHelper = DatabaseHelper.instance;
 
   // Controllers to manage the text being edited in the TextFormFields.
   final _goodsIdController = TextEditingController();
@@ -21,7 +24,27 @@ class _AddGoodPageState extends State<AddGoodPage> {
   final _priceController = TextEditingController();
   final _descriptionController = TextEditingController();
 
+  // State for managing the Bill of Materials selection
+  List<RawMaterials> _allRawMaterials = [];
+  Map<int, RawMaterials> _selectedMaterialsMap = {}; // Key: rawMaterialId, Value: RawMaterial
+  Map<int, TextEditingController> _quantityNeededControllers = {}; // Key: rawMaterialId
+
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAllRawMaterials();
+  }
+
+  Future<void> _loadAllRawMaterials() async {
+    final materials = await _dbHelper.getAllRawMaterials();
+    if(mounted) {
+      setState(() {
+        _allRawMaterials = materials;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -31,75 +54,160 @@ class _AddGoodPageState extends State<AddGoodPage> {
     _quantityController.dispose();
     _priceController.dispose();
     _descriptionController.dispose();
+    for (var controller in _quantityNeededControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
-    // Check if the widget is still in the tree.
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.redAccent : Colors.green,
+        backgroundColor: isError ? Theme.of(context).colorScheme.error : Colors.green,
       ),
     );
   }
 
-  Future<void> _saveGood() async {
-    // First, validate the form.
-    if (_formKey.currentState?.validate() ?? false) {
-      setState(() {
-        _isLoading = true;
-      });
+  Future<void> _showMaterialSelectionDialog() async {
+    Map<int, RawMaterials> tempSelected = Map.from(_selectedMaterialsMap);
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Select Required Materials'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: _allRawMaterials.isEmpty
+                    ? const Text('No raw materials found. Please add materials first.')
+                    : ListView.builder(
+                        itemCount: _allRawMaterials.length,
+                        itemBuilder: (context, index) {
+                          final material = _allRawMaterials[index];
+                          return CheckboxListTile(
+                            title: Text(material.name),
+                            subtitle: Text('ID: ${material.materialID}'),
+                            value: tempSelected.containsKey(material.materialID),
+                            onChanged: (bool? value) {
+                              setDialogState(() {
+                                if (value == true) {
+                                  tempSelected[material.materialID!] = material;
+                                } else {
+                                  tempSelected.remove(material.materialID);
+                                }
+                              });
+                            },
+                          );
+                        },
+                      ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedMaterialsMap = tempSelected;
+                      final oldKeys = _quantityNeededControllers.keys.toSet();
+                      final newKeys = _selectedMaterialsMap.keys.toSet();
+                      
+                      oldKeys.difference(newKeys).forEach((key) {
+                        _quantityNeededControllers[key]?.dispose();
+                        _quantityNeededControllers.remove(key);
+                      });
 
-      try {
-        // If the ID field is empty, tryParse returns null. We use 0 as a
-        // sentinel value for the database helper to indicate a new entry
-        // for an autoincrementing ID.
-        final int goodsId = int.tryParse(_goodsIdController.text) ?? 0;
+                      for (var key in newKeys) {
+                        if (!_quantityNeededControllers.containsKey(key)) {
+                          _quantityNeededControllers[key] = TextEditingController();
+                        }
+                      }
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Done'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
-        // Create a Good object from the form data.
-        final good = Goods(
-          goodsID: goodsId,
+  Future<void> _saveAll() async {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+        _showSnackBar('Please fix the errors in the form.', isError: true);
+        return;
+    }
+
+    for (var controller in _quantityNeededControllers.values) {
+        if(controller.text.isEmpty || int.tryParse(controller.text) == null) {
+            _showSnackBar('Please enter a valid quantity for all selected materials.', isError: true);
+            return;
+        }
+    }
+
+    setState(() { _isLoading = true; });
+
+    final db = await _dbHelper.database;
+    try {
+      await db.transaction((txn) async {
+        final goodsIdFromForm = int.tryParse(_goodsIdController.text);
+        
+        final newGood = Goods(
+          goodsID: goodsIdFromForm ?? 0,
           name: _nameController.text,
           quality: int.parse(_quantityController.text),
           price: double.parse(_priceController.text),
-          description: _descriptionController.text.isNotEmpty
-              ? _descriptionController.text
-              : null,
+          description: _descriptionController.text.isNotEmpty ? _descriptionController.text : null,
         );
 
-        // Access the database and create the record.
-        final dbHelper = DatabaseHelper.instance;
-        await dbHelper.createGood(good);
-        
-        _showSnackBar('商品 "${good.name}" 保存成功!');
-        
-        // Clear the form fields after successful save.
-        _formKey.currentState?.reset();
-        _goodsIdController.clear();
-        _nameController.clear();
-        _quantityController.clear();
-        _priceController.clear();
-        _descriptionController.clear();
-
-      } catch (e) {
-        // Provide a more user-friendly error for unique constraint violations
-        if (e.toString().contains('UNIQUE constraint failed')) {
-          _showSnackBar('Error: A good with this ID already exists.', isError: true);
+        int newGoodsId;
+        if (goodsIdFromForm != null) {
+          await txn.insert(tableGoods, newGood.toMap(), conflictAlgorithm: ConflictAlgorithm.fail);
+          newGoodsId = goodsIdFromForm;
         } else {
-          _showSnackBar('Error saving good: $e', isError: true);
+          newGoodsId = await txn.insert(tableGoods, newGood.toMap(forInsertAndAutoincrement: true));
         }
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
+
+        if (newGoodsId <= 0) {
+            throw Exception("Failed to create the new good.");
+        }
+
+        for (final materialId in _selectedMaterialsMap.keys) {
+          final quantity = int.parse(_quantityNeededControllers[materialId]!.text);
+          final bomEntry = BillOfMaterialEntry(
+            goodsId: newGoodsId,
+            rawMaterialId: materialId,
+            quantityNeeded: quantity,
+          );
+          await txn.insert(tableBillOfMaterials, bomEntry.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+      });
+
+      _showSnackBar('商品保存成功!');
+      if(mounted) Navigator.pop(context);
+
+    } catch (e) {
+      if (e.toString().contains('UNIQUE constraint failed') || e.toString().contains('ConflictAlgorithm.fail')) {
+        _showSnackBar('Error: A good with this ID already exists.', isError: true);
+      } else {
+        _showSnackBar('An error occurred: $e', isError: true);
+      }
+    } finally {
+      if(mounted) {
+        setState(() { _isLoading = false; });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final sortedSelectedMaterials = _selectedMaterialsMap.values.toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('增加新商品'),
@@ -113,111 +221,86 @@ class _AddGoodPageState extends State<AddGoodPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                // Goods ID Field (now optional)
+                //Text('Good Details', style: Theme.of(context).textTheme.titleLarge),
+                //const SizedBox(height: 16),
                 TextFormField(
                   controller: _goodsIdController,
-                  decoration: const InputDecoration(
-                    labelText: '商品ID (可选)',
-                    border: OutlineInputBorder(),
-                    hintText: '留空来自动生成',
-                  ),
+                  decoration: const InputDecoration(labelText: '商品ID (可选)', border: OutlineInputBorder(), hintText: '留空来自动生成'),
                   keyboardType: TextInputType.number,
-                  validator: (value) {
-                    // It's optional, so empty is fine. But if a value is provided, it must be a number.
-                    if (value != null &&
-                        value.isNotEmpty &&
-                        int.tryParse(value) == null) {
-                      return '请输入有效数字';
-                    }
-                    return null;
-                  },
+                  validator: (v) => v != null && v.isNotEmpty && int.tryParse(v) == null ? 'Must be a valid number' : null,
                 ),
                 const SizedBox(height: 16),
-
-                // Name Field
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: '商品名称',
-                    border: OutlineInputBorder(),
-                    hintText: 'e.g., Deluxe Widget',
-                  ),
-                   textCapitalization: TextCapitalization.words,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '请输入商品名称';
-                    }
-                    return null;
-                  },
+                  decoration: const InputDecoration(labelText: '商品名称', border: OutlineInputBorder()),
+                  textCapitalization: TextCapitalization.words,
+                  validator: (v) => v == null || v.isEmpty ? '请输入商品名称' : null,
                 ),
                 const SizedBox(height: 16),
-
-                // Quantity Field
                 TextFormField(
                   controller: _quantityController,
-                  decoration: const InputDecoration(
-                    labelText: '当前数量',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: '当前数量', border: OutlineInputBorder()),
                   keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '请输入数量';
-                    }
-                    if (int.tryParse(value) == null) {
-                      return '请输入有效数字';
-                    }
-                    return null;
-                  },
+                  validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? '请输入有效数字' : null,
                 ),
                 const SizedBox(height: 16),
-
-                // Price Field
                 TextFormField(
                   controller: _priceController,
-                  decoration: const InputDecoration(
-                    labelText: '商品价格',
-                    border: OutlineInputBorder(),
-                    prefixText: '¥',
-                  ),
+                  decoration: const InputDecoration(labelText: '商品价格', border: OutlineInputBorder(), prefixText: '\$'),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '请输入价格';
-                    }
-                    if (double.tryParse(value) == null) {
-                      return '请输入有效价格';
-                    }
-                    return null;
-                  },
+                  validator: (v) => v == null || v.isEmpty || double.tryParse(v) == null ? '请输入有效价格' : null,
                 ),
                 const SizedBox(height: 16),
-
-                // Description Field (Optional)
                 TextFormField(
                   controller: _descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: '商品描述 (可选)',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: '商品描述 (可选)', border: OutlineInputBorder()),
                   maxLines: 3,
-                  // No validator needed as it's optional.
                 ),
-                const SizedBox(height: 24),
+                const Divider(height: 40, thickness: 1),
 
-                // Submit Button
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _saveGood,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    textStyle: const TextStyle(fontSize: 18),
+                Text('所需原料 (可选)', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.add_link),
+                  label: const Text('选择原料...'),
+                  onPressed: _showMaterialSelectionDialog,
+                ),
+                const SizedBox(height: 16),
+                
+                if (sortedSelectedMaterials.isNotEmpty)
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: sortedSelectedMaterials.length,
+                    itemBuilder: (context, index) {
+                      final material = sortedSelectedMaterials[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Row(
+                          children: [
+                            Expanded(child: Text(material.name, style: const TextStyle(fontSize: 16))),
+                            const SizedBox(width: 16),
+                            SizedBox(
+                              width: 120,
+                              child: TextFormField(
+                                controller: _quantityNeededControllers[material.materialID],
+                                decoration: const InputDecoration(labelText: 'Qty Needed', border: OutlineInputBorder()),
+                                keyboardType: TextInputType.number,
+                                validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? 'Req.' : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
+                const SizedBox(height: 24),
+                
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _saveAll,
+                  style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), textStyle: const TextStyle(fontSize: 18)),
                   child: _isLoading
-                      ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
+                      ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Text('保存商品'),
                 ),
               ],
