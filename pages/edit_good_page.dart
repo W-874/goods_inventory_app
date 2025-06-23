@@ -1,8 +1,8 @@
 // lib/pages/edit_good_page.dart
 import 'package:flutter/material.dart';
-import '../lib/database_helper.dart';
-import '../lib/data_class.dart';
-import '../lib/db_constants.dart';
+import 'package:goods_inventory_app/database_helper.dart';
+import 'package:goods_inventory_app/data_class.dart';
+import 'package:goods_inventory_app/db_constants.dart';
 
 class EditGoodPage extends StatefulWidget {
   final Goods good;
@@ -93,7 +93,6 @@ class _EditGoodPageState extends State<EditGoodPage> {
         final updatedGood = widget.good.copyWith(
             name: _nameController.text,
             quality: int.parse(_quantityController.text),
-            price: double.parse(_priceController.text),
             description: _descriptionController.text,
         );
         
@@ -155,13 +154,13 @@ class _EditGoodPageState extends State<EditGoodPage> {
                   keyboardType: TextInputType.number,
                   validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? '请输入有效数字' : null,
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _priceController,
-                  decoration: const InputDecoration(labelText: '商品价格', border: OutlineInputBorder(), prefixText: '\$'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  validator: (v) => v == null || v.isEmpty || double.tryParse(v) == null ? '请输入有效价格' : null,
-                ),
+                // const SizedBox(height: 16),
+                // TextFormField(
+                //   controller: _priceController,
+                //   decoration: const InputDecoration(labelText: '商品价格', border: OutlineInputBorder(), prefixText: '\$'),
+                //   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                //   validator: (v) => v == null || v.isEmpty || double.tryParse(v) == null ? '请输入有效价格' : null,
+                // ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _descriptionController,

@@ -5,19 +5,19 @@ class Goods{
   int? goodsID = 0;
   String name = "default";
   int quality = 0;
-  double price = 0;
+  double? price = 0;
   String? description;
 
   
 
-  Goods({this.goodsID, required this.name, required this.quality, required this.price, this.description});
+  Goods({this.goodsID, required this.name, required this.quality, this.price, this.description});
 
   factory Goods.fromMap(Map<String, dynamic> map) {
     return Goods(
       goodsID: map[columnGoodsId] as int,
       name: map[columnName] as String,
       quality: map[columnGoodsRemainingQuantity] as int,
-      price: (map[columnPrice] as num).toDouble(),
+      price: map[columnPrice] != null ? (map[columnPrice] as num).toDouble() : null,
       description: map[columnDescription] as String?,
     );
   }
@@ -82,17 +82,17 @@ class RawMaterials{
   int? materialID = 0;
   String name = "default";
   int quality = 0;
-  double price = 0;
+  double? price = 0;
   String? description = "null";
 
-  RawMaterials({this.materialID, required this.name, required this.quality, required this.price, this.description});
+  RawMaterials({this.materialID, required this.name, required this.quality, this.price, this.description});
 
   factory RawMaterials.fromMap(Map<String, dynamic> map) {
     return RawMaterials(
       materialID: map[columnRawMaterialId] as int,
       name: map[columnName] as String,
       quality: map[columnRawMaterialRemainingQuantity] as int,
-      price: map[columnPrice] as double,
+      price: map[columnPrice] != null ? (map[columnPrice] as num).toDouble() : null,
       description: map[columnDescription] as String?,
       );
   }

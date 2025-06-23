@@ -8,7 +8,7 @@ import 'db_constants.dart';
 
 class DatabaseHelper {
   static const _databaseName = "MyInventory.db";
-  static const _databaseVersion = 2;
+  static const _databaseVersion = 3;
 
   // Make this a singleton class.
   DatabaseHelper._privateConstructor();
@@ -61,7 +61,7 @@ class DatabaseHelper {
           $columnGoodsId INTEGER PRIMARY KEY, 
           $columnName TEXT NOT NULL,
           $columnGoodsRemainingQuantity INTEGER NOT NULL,
-          $columnPrice REAL NOT NULL, 
+          $columnPrice REAL, 
           $columnDescription TEXT
         )
       ''');
@@ -70,7 +70,7 @@ class DatabaseHelper {
           $columnRawMaterialId INTEGER PRIMARY KEY,
           $columnName TEXT NOT NULL,
           $columnRawMaterialRemainingQuantity INTEGER NOT NULL,
-          $columnPrice REAL NOT NULL, 
+          $columnPrice REAL, 
           $columnDescription TEXT
         )
       ''');
@@ -97,6 +97,45 @@ class DatabaseHelper {
           FOREIGN KEY ($columnGoodsId) REFERENCES $tableGoods ($columnGoodsId) ON DELETE CASCADE
         )
       ''');
+    }
+    if (oldVersion < 3 && oldVersion > 0) {
+      // Add any future migrations here
+      await db.execute('ALTER TABLE $tableGoods RENAME TO ${tableGoods}_old;');
+      await db.execute('ALTER TABLE $tableRawMaterials RENAME TO ${tableRawMaterials}_old;');
+      batch.execute('''
+        CREATE TABLE $tableGoods (
+          $columnGoodsId INTEGER PRIMARY KEY AUTOINCREMENT, 
+          $columnName TEXT NOT NULL,
+          $columnGoodsRemainingQuantity INTEGER NOT NULL,
+          $columnPrice REAL, 
+          $columnDescription TEXT
+        )
+        CREATE TABLE $tableRawMaterials (
+          $columnRawMaterialId INTEGER PRIMARY KEY AUTOINCREMENT,
+          $columnName TEXT NOT NULL,
+          $columnRawMaterialRemainingQuantity INTEGER NOT NULL,
+          $columnPrice REAL, 
+          $columnDescription TEXT
+        )
+      ''');
+      await db.execute('''
+        INSERT INTO $tableGoods (
+          $columnGoodsId, $columnName, $columnGoodsRemainingQuantity, $columnPrice, $columnDescription
+        )
+        SELECT
+          $columnGoodsId, $columnName, $columnGoodsRemainingQuantity, $columnPrice, $columnDescription
+        FROM ${tableGoods}_old;
+      ''');
+      await db.execute('''
+        INSERT INTO $tableRawMaterials (
+          $columnRawMaterialId, $columnName, $columnRawMaterialRemainingQuantity, $columnPrice, $columnDescription
+        )
+        SELECT
+          $columnRawMaterialId, $columnName, $columnRawMaterialRemainingQuantity, $columnPrice, $columnDescription
+        FROM ${tableRawMaterials}_old;
+      ''');
+      await db.execute('DROP TABLE ${tableGoods}_old;');
+      await db.execute('DROP TABLE ${tableRawMaterials}_old;');      
     }
     await batch.commit();
   }

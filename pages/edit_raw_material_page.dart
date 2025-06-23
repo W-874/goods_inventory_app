@@ -1,7 +1,7 @@
 // lib/pages/edit_raw_material_page.dart
 import 'package:flutter/material.dart';
-import '../lib/database_helper.dart';
-import '../lib/data_class.dart';
+import 'package:goods_inventory_app/database_helper.dart';
+import 'package:goods_inventory_app/data_class.dart';
 
 class EditRawMaterialPage extends StatefulWidget {
   final RawMaterials material;
@@ -88,7 +88,6 @@ class _EditRawMaterialPageState extends State<EditRawMaterialPage> {
         final updatedMaterial = widget.material.copyWith(
             name: _nameController.text,
             quality: int.parse(_quantityController.text),
-            price: double.parse(_priceController.text),
             description: _descriptionController.text,
         );
 
@@ -125,7 +124,7 @@ class _EditRawMaterialPageState extends State<EditRawMaterialPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('增加新原料'),
+        title: const Text('编辑原料'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SingleChildScrollView(
@@ -152,13 +151,13 @@ class _EditRawMaterialPageState extends State<EditRawMaterialPage> {
                   keyboardType: TextInputType.number,
                   validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? '请输入有效数字' : null,
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _priceController,
-                  decoration: const InputDecoration(labelText: '原料价格', border: OutlineInputBorder(), prefixText: '¥'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  validator: (v) => v == null || v.isEmpty || double.tryParse(v) == null ? '请输入有效价格' : null,
-                ),
+                // const SizedBox(height: 16),
+                // TextFormField(
+                //   controller: _priceController,
+                //   decoration: const InputDecoration(labelText: '原料价格', border: OutlineInputBorder(), prefixText: '¥'),
+                //   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                //   validator: (v) => v == null || v.isEmpty || double.tryParse(v) == null ? '请输入有效价格' : null,
+                // ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _descriptionController,

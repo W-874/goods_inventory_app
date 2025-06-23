@@ -10,6 +10,8 @@ import 'add_pending_good_page.dart';
 import 'good_detail_page.dart';
 import 'raw_material_detail_page.dart';
 import 'pending_good_detail_page.dart';
+import "edit_good_page.dart";
+import "edit_raw_material_page.dart";
 
 Future<void> main() async {
   // Ensure that plugin services are initialized for database path and async operations.
@@ -247,7 +249,7 @@ class _HomePageState extends State<HomePage> {
           margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
             title: Text(good.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('数量: ${good.quality} | 价格: ¥${good.price.toStringAsFixed(2)}'),
+            subtitle: Text('数量: ${good.quality}'),
             onTap: () { // <-- ADDED
               Navigator.push(
                 context,
@@ -258,20 +260,15 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: Icon(Icons.edit_note, color: Theme.of(context).colorScheme.primary),
-                  tooltip: '更新数量',
-                  onPressed: () {
-                    _showUpdateQuantityDialog(
-                      itemName: good.name,
-                      currentQuantity: good.quality,
-                      onSave: (change) async {
-                        final updatedGood = good.copyWith(
-                          quality: good.quality + change,
-                        );
-                        await dbHelper.updateGood(updatedGood);
-                        _refreshData();
-                      },
+                  icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary), // Changed icon
+                  tooltip: '编辑商品', // Changed tooltip
+                  onPressed: () async { // Changed action
+                    // Navigate to the new EditGoodPage and refresh when done
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => EditGoodPage(good: good)),
                     );
+                    _refreshData();
                   },
                 ),
                 IconButton(
@@ -305,7 +302,7 @@ class _HomePageState extends State<HomePage> {
           margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
             title: Text(material.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('数量: ${material.quality} | 价格: ¥${material.price.toStringAsFixed(2)}'),
+            subtitle: Text('数量: ${material.quality}'),
             onTap: () { // <-- ADDED
               Navigator.push(
                 context,
@@ -316,20 +313,15 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: Icon(Icons.edit_note, color: Theme.of(context).colorScheme.primary),
-                  tooltip: '更新数量',
-                  onPressed: () {
-                     _showUpdateQuantityDialog(
-                      itemName: material.name,
-                      currentQuantity: material.quality,
-                      onSave: (change) async {
-                        final updatedMaterial = material.copyWith(
-                          quality: material.quality + change,
-                        );
-                        await dbHelper.updateRawMaterial(updatedMaterial);
-                        _refreshData();
-                      },
+                  icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary), // Changed icon
+                  tooltip: 'Edit Raw Material', // Changed tooltip
+                  onPressed: () async { // Changed action
+                    // Navigate to the new EditRawMaterialPage and refresh when done
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => EditRawMaterialPage(material: material)),
                     );
+                    _refreshData();
                   },
                 ),
                 IconButton(

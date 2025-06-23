@@ -35,8 +35,6 @@ class GoodDetailPage extends StatelessWidget {
                       Text('ID: ${good.goodsID}', style: textTheme.bodyLarge),
                       const SizedBox(height: 8),
                       Text('数量: ${good.quality}', style: textTheme.bodyLarge),
-                      const SizedBox(height: 8),
-                      Text('价格: \$${good.price.toStringAsFixed(2)}', style: textTheme.bodyLarge),
                       if (good.description != null && good.description!.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Text('描述: ${good.description}', style: textTheme.bodyLarge),

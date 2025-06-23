@@ -35,8 +35,6 @@ class RawMaterialDetailPage extends StatelessWidget {
                       Text('ID: ${material.materialID}', style: textTheme.bodyLarge),
                       const SizedBox(height: 8),
                       Text('数量: ${material.quality}', style: textTheme.bodyLarge),
-                      const SizedBox(height: 8),
-                      Text('价格: \$${material.price.toStringAsFixed(2)}', style: textTheme.bodyLarge),
                       if (material.description != null && material.description!.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Text('描述: ${material.description}', style: textTheme.bodyLarge),
