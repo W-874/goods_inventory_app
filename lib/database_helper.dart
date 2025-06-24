@@ -258,6 +258,27 @@ class DatabaseHelper {
     });
   }
 
+  Future<List<BillOfMaterialEntry>> getBOMEntriesForRawMaterialWithGoodNames(int rawMaterialId) async {
+    Database db = await instance.database;
+    final String query = '''
+      SELECT
+        bom.$columnGoodsId,
+        bom.$columnRawMaterialId,
+        bom.$columnQuantityNeeded,
+        g.$columnName
+      FROM
+        $tableBillOfMaterials bom
+      JOIN
+        $tableGoods g ON bom.$columnGoodsId = g.$columnGoodsId
+      WHERE
+        bom.$columnRawMaterialId = ?
+    ''';
+    final List<Map<String, dynamic>> maps = await db.rawQuery(query, [rawMaterialId]);
+    return List.generate(maps.length, (i) {
+      return BillOfMaterialEntry.fromMap(maps[i]);
+    });
+  }
+
   /// Updates a RawMaterial and replaces all BOM entries it's a part of.
   Future<void> updateRawMaterialAndBOM(RawMaterials material, List<BillOfMaterialEntry> bomEntries) async {
       final db = await instance.database;

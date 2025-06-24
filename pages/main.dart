@@ -356,7 +356,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.cancel_outlined, color: Colors.redAccent),
-                  tooltip: 'Cancel Production',
+                  tooltip: '取消生产',
                   onPressed: () async {
                     if (await _showDeleteConfirmationDialog(title: '取消生产?', content: '这将会返还原材料到原材料库存中.')) {
                       await dbHelper.cancelProduction(pending);

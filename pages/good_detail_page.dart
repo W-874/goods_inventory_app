@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:goods_inventory_app/database_helper.dart';
 import 'package:goods_inventory_app/data_class.dart';
-import './edit_good_page.dart'; // Import the edit page
+import 'edit_good_page.dart'; // Import the edit page
 
 class GoodDetailPage extends StatefulWidget {
   final Goods good;
@@ -134,8 +134,6 @@ class _GoodDetailPageState extends State<GoodDetailPage> {
                       Text('ID: ${_currentGood.goodsID}', style: textTheme.bodyLarge),
                       const SizedBox(height: 8),
                       Text('数量: ${_currentGood.quality}', style: textTheme.bodyLarge),
-                      const SizedBox(height: 8),
-                      Text('Price: \$${_currentGood.price?.toStringAsFixed(2) ?? 'N/A'}', style: textTheme.bodyLarge),
                       if (_currentGood.description != null && _currentGood.description!.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Text('描述: ${_currentGood.description}', style: textTheme.bodyLarge),

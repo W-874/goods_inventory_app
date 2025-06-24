@@ -63,7 +63,7 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
               onPressed: () async {
                 if (await _showConfirmationDialog(
                     title: '取消生产?', 
-                    content: 'This will return consumed raw materials to stock and delete this record.'
+                    content: '这将会返还原材料到原材料库存中.'
                 )) {
                   await dbHelper.cancelProduction(widget.pendingGood);
                   if(mounted) Navigator.pop(context, true); // Pop with a result to indicate success
@@ -80,7 +80,7 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
               onPressed: () async {
                  if (await _showConfirmationDialog(
                     title: '生产已完成?', 
-                    content: 'This will move ${widget.pendingGood.quantityInProduction} of "${widget.pendingGood.goodName}" to the In Store list.'
+                    content: '这将会把 ${widget.pendingGood.quantityInProduction} 个 "${widget.pendingGood.goodName}" 加入到待入库清单中.'
                 )) {
                     await dbHelper.completeProduction(widget.pendingGood);
                     if(mounted) Navigator.pop(context, true); // Pop with a result to indicate success
@@ -98,11 +98,11 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
           Expanded(
             child: OutlinedButton.icon(
               icon: Icon(Icons.local_shipping_outlined, color: Theme.of(context).colorScheme.primary),
-              label: const Text('Sell / Export'),
+              label: const Text('出库'),
               onPressed: () async {
                  if (await _showConfirmationDialog(
-                    title: 'Export Item?', 
-                    content: 'This assumes the item has been sold and will remove the record.'
+                    title: '确认出库?', 
+                    content: '这将不会计入到商品数目中, 但会删除待入库清单中的记录.'
                 )) {
                     await dbHelper.deletePendingGood(widget.pendingGood.pendingId!);
                     if(mounted) Navigator.pop(context, true); // Pop with a result to indicate success
@@ -114,11 +114,11 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
           Expanded(
             child: ElevatedButton.icon(
               icon: const Icon(Icons.inventory_outlined),
-              label: const Text('Add to Stock'),
+              label: const Text('入库'),
               onPressed: () async {
                 if (await _showConfirmationDialog(
-                    title: 'Add to Stock?', 
-                    content: 'This will add ${widget.pendingGood.quantityInProduction} to your "${widget.pendingGood.goodName}" component goods stock and remove this record.'
+                    title: '入库?', 
+                    content: '这将会把 ${widget.pendingGood.quantityInProduction} 个 "${widget.pendingGood.goodName}" 加入到商品数目中.'
                 )) {
                     await dbHelper.stockInStoreGood(widget.pendingGood);
                     if(mounted) Navigator.pop(context, true); // Pop with a result to indicate success
@@ -140,7 +140,7 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
     
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.pendingGood.goodName ?? 'Order Details'),
+        title: Text(widget.pendingGood.goodName ?? '生产详情'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SingleChildScrollView(
@@ -155,17 +155,17 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Order Details', style: textTheme.titleLarge),
+                      Text('详情', style: textTheme.titleLarge),
                       const Divider(),
-                      Text('Producing: ${widget.pendingGood.goodName}', style: textTheme.bodyLarge),
+                      Text('商品名称: ${widget.pendingGood.goodName}', style: textTheme.bodyLarge),
                       const SizedBox(height: 8),
-                      Text('Quantity: ${widget.pendingGood.quantityInProduction}', style: textTheme.bodyLarge),
+                      Text('数量: ${widget.pendingGood.quantityInProduction}', style: textTheme.bodyLarge),
                       const SizedBox(height: 8),
-                      Text('Date: $formattedDate', style: textTheme.bodyLarge),
+                      Text('时间: $formattedDate', style: textTheme.bodyLarge),
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Text('Status: ', style: textTheme.bodyLarge),
+                          Text('生产状态: ', style: textTheme.bodyLarge),
                           Text(statusText, style: textTheme.bodyLarge?.copyWith(color: statusColor, fontWeight: FontWeight.bold)),
                         ],
                       ),
@@ -179,7 +179,7 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
               else
                   _buildActionButtons(),
               const SizedBox(height: 24),
-              Text('Consumed Raw Materials', style: textTheme.titleLarge),
+              Text('消耗的原材料', style: textTheme.titleLarge),
               const SizedBox(height: 8),
               FutureBuilder<List<BillOfMaterialEntry>>(
                 future: dbHelper.getBillOfMaterialsWithNames(widget.pendingGood.goodsId),
@@ -188,7 +188,7 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Text('Could not determine consumed materials.');
+                    return const Text('不能确定消耗的原材料.');
                   }
                   return Card(
                     child: ListView.builder(
@@ -198,8 +198,8 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
                       itemBuilder: (context, index) {
                         final bomEntry = snapshot.data![index];
                         return ListTile(
-                          title: Text(bomEntry.rawMaterialName ?? 'Unknown Material'),
-                          trailing: Text('Total Used: ${bomEntry.quantityNeeded * widget.pendingGood.quantityInProduction}'),
+                          title: Text(bomEntry.rawMaterialName ?? '未知原料'),
+                          trailing: Text('总消耗: ${bomEntry.quantityNeeded * widget.pendingGood.quantityInProduction}'),
                         );
                       },
                     ),
