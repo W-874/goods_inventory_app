@@ -1,3 +1,5 @@
+// ignore_for_file: depend_on_referenced_packages
+
 import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart';
@@ -314,19 +316,79 @@ class DatabaseHelper {
     });
   }
 
+  /// When production is completed, we update the pending good's status to 0.
   Future<void> completeProduction(PendingGood pendingGood) async {
     final db = await instance.database;
+    // The transaction now only performs a single action.
     await db.transaction((txn) async {
-      final goodMaps = await txn.query(tableGoods, where: '$columnGoodsId = ?', whereArgs: [pendingGood.goodsId]);
-      if (goodMaps.isEmpty) throw Exception("Good not found.");
+        // Update the status to 0 (completed). The quantity no longer goes to the Goods table.
+        await txn.update(
+            tablePendingGoods,
+            {columnStatus: 0},
+            where: '$columnPendingId = ?',
+            whereArgs: [pendingGood.pendingId],
+        );
+    });
+  }
+
+  Future<List<PendingGood>> getAllInStoreGoods() async {
+    Database db = await instance.database;
+    final String query = '''
+      SELECT
+        pg.$columnPendingId, pg.$columnGoodsId, pg.$columnQuantityInProduction, 
+        pg.$columnStartDate, pg.$columnStatus, g.$columnName
+      FROM
+        $tablePendingGoods pg
+      JOIN
+        $tableGoods g ON pg.$columnGoodsId = g.$columnGoodsId
+      WHERE
+        pg.$columnStatus = 0
+      ORDER BY pg.$columnStartDate DESC
+    ''';
+    final List<Map<String, dynamic>> maps = await db.rawQuery(query);
+    return List.generate(maps.length, (i) => PendingGood.fromMap(maps[i]));
+  }
+  
+  Future<void> stockInStoreGood(PendingGood completedGood) async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      // 1. Get the corresponding Good to update its stock
+      final goodMaps = await txn.query(
+        tableGoods,
+        where: '$columnGoodsId = ?',
+        whereArgs: [completedGood.goodsId],
+      );
+      if (goodMaps.isEmpty) {
+        throw Exception("Cannot find corresponding good to stock this item into.");
+      }
       final good = Goods.fromMap(goodMaps.first);
 
-      await txn.update(tableGoods, {columnGoodsRemainingQuantity: good.quality + pendingGood.quantityInProduction}, where: '$columnGoodsId = ?', whereArgs: [pendingGood.goodsId]);
-      
-      await txn.update(tablePendingGoods, {columnStatus: 0}, where: '$columnPendingId = ?', whereArgs: [pendingGood.pendingId]);
+      // 2. Add the quantity to the existing good's stock
+      await txn.update(
+        tableGoods,
+        {columnGoodsRemainingQuantity: good.quality + completedGood.quantityInProduction},
+        where: '$columnGoodsId = ?',
+        whereArgs: [good.goodsID],
+      );
+
+      // 3. Delete the record from the pending_goods table as it is now fully stocked.
+      await txn.delete(
+        tablePendingGoods,
+        where: '$columnPendingId = ?',
+        whereArgs: [completedGood.pendingId],
+      );
     });
   }
   
+  Future<int> deletePendingGood(int pendingId) async {
+    final db = await instance.database;
+    return await db.delete(
+      tablePendingGoods,
+      where: '$columnPendingId = ?',
+      whereArgs: [pendingId],
+    );
+  }
+
   Future<void> cancelProduction(PendingGood pendingGood) async {
     final db = await instance.database;
     await db.transaction((txn) async {
@@ -340,7 +402,7 @@ class DatabaseHelper {
         await txn.update(tableRawMaterials, {columnRawMaterialRemainingQuantity: material.quality + consumedQty}, where: '$columnRawMaterialId = ?', whereArgs: [entry.rawMaterialId]);
       }
       
-      await txn.update(tablePendingGoods, {columnStatus: 0}, where: '$columnPendingId = ?', whereArgs: [pendingGood.pendingId]);
+      await deletePendingGood(pendingGood.pendingId!);
     });
   }
 }

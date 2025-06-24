@@ -38,7 +38,7 @@ class MyApp extends StatelessWidget {
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
         return MaterialApp(
-          title: 'Inventory Manager',
+          title: '库存管理',
           theme: ThemeData(
             // Use the dynamic color scheme if available, otherwise use the default.
             colorScheme: lightDynamic ?? _defaultColorScheme,
@@ -69,9 +69,10 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final dbHelper = DatabaseHelper.instance;
 
-  List<Goods> _goods = [];
+  List<Goods> _componentGoods = [];
   List<RawMaterials> _rawMaterials = [];
   List<PendingGood> _pendingGoods = [];
+  List<PendingGood> _inStoreGoods = [];
   bool _isLoading = true;
 
   @override
@@ -81,16 +82,16 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _refreshData() async {
-    setState(() {
-      _isLoading = true;
-    });
-    final goodsData = await dbHelper.getAllGoods();
+    setState(() { _isLoading = true; });
+    final allGoods = await dbHelper.getAllGoods();
     final rawMaterialsData = await dbHelper.getAllRawMaterials();
     final pendingGoodsData = await dbHelper.getAllPendingGoods();
-    // Ensure the widget is still mounted before setting state.
+    final inStoreData = await dbHelper.getAllInStoreGoods();
+
     if (mounted) {
       setState(() {
-        _goods = goodsData;
+        _inStoreGoods = inStoreData;
+        _componentGoods = allGoods; // Corrected: No longer filtering by isForStore
         _rawMaterials = rawMaterialsData;
         _pendingGoods = pendingGoodsData;
         _isLoading = false;
@@ -140,77 +141,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// Shows a dialog to update the quantity of an item.
-  Future<void> _showUpdateQuantityDialog({
-    required String itemName,
-    required int currentQuantity,
-    required Future<void> Function(int quantityChange) onSave,
-  }) async {
-    final controller = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    return showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('更新 $itemName 的数量'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('当前数量: $currentQuantity'),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: controller,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Change (+/-)',
-                    hintText: 'e.g., 10 or -5',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(signed: true),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '请输入';
-                    }
-                    final change = int.tryParse(value);
-                    if (change == null) {
-                      return '请输入数字';
-                    }
-                    if (currentQuantity + change < 0) {
-                      return '库存不能为负数';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('取消'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            ElevatedButton(
-              child: const Text('保存'),
-              onPressed: () async {
-                if (formKey.currentState?.validate() ?? false) {
-                  final change = int.tryParse(controller.text) ?? 0;
-                  await onSave(change);
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   /// Shows a confirmation dialog before deleting an item.
   Future<bool> _showDeleteConfirmationDialog({String title = '你确定吗?', String content = '该操作不能撤销.'}) async {
     final result = await showDialog<bool>(
@@ -235,16 +165,70 @@ class _HomePageState extends State<HomePage> {
   }
 
 // --- UI Builder Methods ---
+  Widget _buildInStoreList() {
+    if (_inStoreGoods.isEmpty) {
+      return const Center(child: Text('目前没有待入库商品.', textAlign: TextAlign.center));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(8.0),
+      itemCount: _inStoreGoods.length,
+      itemBuilder: (context, index) {
+        final completedGood = _inStoreGoods[index];
+        final formattedDate = DateFormat.yMd().add_jm().format(completedGood.startDate);
+        return Card(
+          child: ListTile(
+            leading: const Icon(Icons.check_box, color: Colors.blueGrey),
+            title: Text(completedGood.goodName ?? '未知商品', style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('数量: ${completedGood.quantityInProduction} | 完成于: $formattedDate'),
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => PendingGoodDetailPage(pendingGood: completedGood)));
+            },
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.inventory_outlined, color: Colors.green),
+                  tooltip: '入库',
+                  onPressed: () async {
+                    if (await _showDeleteConfirmationDialog(
+                        title: '确认入库?', 
+                        content: '这将会把 ${completedGood.quantityInProduction} 个 "${completedGood.goodName}" 加入到商品数目中.'
+                    )) {
+                        await dbHelper.stockInStoreGood(completedGood);
+                        _refreshData();
+                    }
+                  },
+                ),
+                IconButton(
+                  icon: Icon(Icons.local_shipping_outlined, color: Theme.of(context).colorScheme.primary),
+                  tooltip: '出库',
+                  onPressed: () async {
+                    if (await _showDeleteConfirmationDialog(
+                      title: '确认出库?',
+                      content: '这将不会计入到商品数目中, 但会删除待入库清单中的记录.'
+                    )) {
+                      await dbHelper.deletePendingGood(completedGood.pendingId!);
+                      _refreshData();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   Widget _buildGoodsList() {
-    if (_goods.isEmpty) {
+    if (_componentGoods.isEmpty) {
         return const Center(child: Text('未找到商品.\n按“ + ”号来添加.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)));
     }
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
-      itemCount: _goods.length,
+      itemCount: _componentGoods.length,
       itemBuilder: (context, index) {
-        final good = _goods[index];
+        final good = _componentGoods[index];
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
@@ -314,7 +298,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 IconButton(
                   icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary), // Changed icon
-                  tooltip: 'Edit Raw Material', // Changed tooltip
+                  tooltip: '编辑原材料', // Changed tooltip
                   onPressed: () async { // Changed action
                     // Navigate to the new EditRawMaterialPage and refresh when done
                     await Navigator.push(
@@ -343,9 +327,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildPendingGoodsList() {
-    if (_pendingGoods.isEmpty) {
-      return const Center(child: Text('目前没有正在进行的生产.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)));
-    }
+    if (_pendingGoods.isEmpty) { return const Center(child: Text('目前没有生产中商品.', textAlign: TextAlign.center)); }
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
       itemCount: _pendingGoods.length,
@@ -353,15 +335,11 @@ class _HomePageState extends State<HomePage> {
         final pending = _pendingGoods[index];
         final formattedDate = DateFormat.yMd().add_jm().format(pending.startDate);
         return Card(
-          margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
             title: Text(pending.goodName ?? '未知商品', style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('数量: ${pending.quantityInProduction} | 开始于: $formattedDate'),
-            onTap: () { // <-- ADDED
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => PendingGoodDetailPage(pendingGood: pending)),
-              );
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => PendingGoodDetailPage(pendingGood: pending)));
             },
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -370,7 +348,7 @@ class _HomePageState extends State<HomePage> {
                   icon: const Icon(Icons.check_circle_outline, color: Colors.green),
                   tooltip: '完成生产',
                   onPressed: () async {
-                    if(await _showDeleteConfirmationDialog(title: '完成该生产？', content: 'This will add ${pending.quantityInProduction} to "${pending.goodName}" stock.')) {
+                    if(await _showDeleteConfirmationDialog(title: '生产已完成?', content: '这将会把 ${pending.quantityInProduction} 个 "${pending.goodName}" 加入到待入库清单中.')) {
                         await dbHelper.completeProduction(pending);
                         _refreshData();
                     }
@@ -378,9 +356,9 @@ class _HomePageState extends State<HomePage> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.cancel_outlined, color: Colors.redAccent),
-                  tooltip: '取消生产',
+                  tooltip: 'Cancel Production',
                   onPressed: () async {
-                    if (await _showDeleteConfirmationDialog(title: '取消该生产？', content: 'This will return consumed raw materials to stock.')) {
+                    if (await _showDeleteConfirmationDialog(title: '取消生产?', content: '这将会返还原材料到原材料库存中.')) {
                       await dbHelper.cancelProduction(pending);
                       _refreshData();
                     }
@@ -397,7 +375,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('库存面板'),
@@ -405,6 +383,7 @@ class _HomePageState extends State<HomePage> {
           bottom: const TabBar(
             tabs: [
               Tab(icon: Icon(Icons.build_circle_outlined), text: '生产中'),
+              Tab(icon: Icon(Icons.storefront_outlined), text: '待入库'),
               Tab(icon: Icon(Icons.inventory_2), text: '商品'),
               Tab(icon: Icon(Icons.layers), text: '原料'),
             ],
@@ -415,6 +394,7 @@ class _HomePageState extends State<HomePage> {
             : TabBarView(
                 children: [
                   _buildPendingGoodsList(),
+                  _buildInStoreList(),
                   _buildGoodsList(),
                   _buildRawMaterialsList(),
                 ],
