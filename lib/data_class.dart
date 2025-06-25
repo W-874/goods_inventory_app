@@ -5,19 +5,19 @@ class Goods{
   int? goodsID = 0;
   String name = "default";
   int quality = 0;
-  double price = 0;
+  double? price = 0;
   String? description;
 
   
 
-  Goods({this.goodsID, required this.name, required this.quality, required this.price, this.description});
+  Goods({this.goodsID, required this.name, required this.quality, this.price, this.description});
 
   factory Goods.fromMap(Map<String, dynamic> map) {
     return Goods(
       goodsID: map[columnGoodsId] as int,
       name: map[columnName] as String,
       quality: map[columnGoodsRemainingQuantity] as int,
-      price: (map[columnPrice] as num).toDouble(),
+      price: map[columnPrice] != null ? (map[columnPrice] as num).toDouble() : null,
       description: map[columnDescription] as String?,
     );
   }
@@ -82,17 +82,17 @@ class RawMaterials{
   int? materialID = 0;
   String name = "default";
   int quality = 0;
-  double price = 0;
+  double? price = 0;
   String? description = "null";
 
-  RawMaterials({this.materialID, required this.name, required this.quality, required this.price, this.description});
+  RawMaterials({this.materialID, required this.name, required this.quality, this.price, this.description});
 
   factory RawMaterials.fromMap(Map<String, dynamic> map) {
     return RawMaterials(
       materialID: map[columnRawMaterialId] as int,
       name: map[columnName] as String,
       quality: map[columnRawMaterialRemainingQuantity] as int,
-      price: map[columnPrice] as double,
+      price: map[columnPrice] != null ? (map[columnPrice] as num).toDouble() : null,
       description: map[columnDescription] as String?,
       );
   }
@@ -159,13 +159,16 @@ class BillOfMaterialEntry {
   final int goodsId;
   final int rawMaterialId;
   final int quantityNeeded;
-  final String? rawMaterialName; // Added field for display
+  final String? rawMaterialName;
+  final String? goodName; // For raw_material_detail_page
+ // Added field for display
 
   const BillOfMaterialEntry({
     required this.goodsId,
     required this.rawMaterialId,
     required this.quantityNeeded,
     this.rawMaterialName,
+    this.goodName,
   });
 
   factory BillOfMaterialEntry.fromMap(Map<String, dynamic> map) {
@@ -173,7 +176,9 @@ class BillOfMaterialEntry {
       goodsId: map[columnGoodsId] as int,
       rawMaterialId: map[columnRawMaterialId] as int,
       quantityNeeded: map[columnQuantityNeeded] as int,
-      rawMaterialName: map[columnName] as String?,
+      // The names will be present if the query used a JOIN
+      rawMaterialName: map[columnName] as String?, // Can map to either good or material name
+      goodName: map[columnName] as String?, // Same as above, context depends on query
     );
   }
 
@@ -191,12 +196,14 @@ class BillOfMaterialEntry {
     int? rawMaterialId,
     int? quantityNeeded,
     String? rawMaterialName,
+    String? goodName,
   }) {
     return BillOfMaterialEntry(
       goodsId: goodsId ?? this.goodsId,
       rawMaterialId: rawMaterialId ?? this.rawMaterialId,
       quantityNeeded: quantityNeeded ?? this.quantityNeeded,
       rawMaterialName: rawMaterialName ?? this.rawMaterialName,
+      goodName: goodName ?? this.goodName,
     );
   }
 
@@ -212,7 +219,8 @@ class BillOfMaterialEntry {
         other.goodsId == goodsId &&
         other.rawMaterialId == rawMaterialId &&
         other.quantityNeeded == quantityNeeded &&
-        other.rawMaterialName == rawMaterialName;
+        other.rawMaterialName == rawMaterialName &&
+        other.goodName == goodName;
   }
 
   @override
@@ -220,7 +228,8 @@ class BillOfMaterialEntry {
     return goodsId.hashCode ^
         rawMaterialId.hashCode ^
         quantityNeeded.hashCode ^
-        rawMaterialName.hashCode;
+        rawMaterialName.hashCode ^
+        goodName.hashCode;
   }
 }
 

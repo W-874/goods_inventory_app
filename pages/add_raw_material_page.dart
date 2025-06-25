@@ -168,7 +168,6 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
           materialID: rawMaterialIdFromForm ?? 0,
           name: _nameController.text,
           quality: int.parse(_quantityController.text),
-          price: double.parse(_priceController.text),
           description: _descriptionController.text.isNotEmpty
               ? _descriptionController.text
               : null,
@@ -271,13 +270,13 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
                   keyboardType: TextInputType.number,
                   validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? '请输入有效数字' : null,
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _priceController,
-                  decoration: const InputDecoration(labelText: '原料价格', border: OutlineInputBorder(), prefixText: '¥'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  validator: (v) => v == null || v.isEmpty || double.tryParse(v) == null ? '请输入有效价格' : null,
-                ),
+                // const SizedBox(height: 16),
+                // TextFormField(
+                //   controller: _priceController,
+                //   decoration: const InputDecoration(labelText: '原料价格', border: OutlineInputBorder(), prefixText: '¥'),
+                //   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                //   validator: (v) => v == null || v.isEmpty || double.tryParse(v) == null ? '请输入有效价格' : null,
+                // ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _descriptionController,

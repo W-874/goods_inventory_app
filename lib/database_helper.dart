@@ -1,3 +1,5 @@
+// ignore_for_file: depend_on_referenced_packages
+
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -10,7 +12,7 @@ import 'db_constants.dart';
 
 class DatabaseHelper {
   static const _databaseName = "MyInventory.db";
-  static const _databaseVersion = 2;
+  static const _databaseVersion = 3;
 
   // Make this a singleton class.
   DatabaseHelper._privateConstructor();
@@ -69,7 +71,7 @@ class DatabaseHelper {
           $columnGoodsId INTEGER PRIMARY KEY, 
           $columnName TEXT NOT NULL,
           $columnGoodsRemainingQuantity INTEGER NOT NULL,
-          $columnPrice REAL NOT NULL, 
+          $columnPrice REAL, 
           $columnDescription TEXT
         )
       ''');
@@ -78,7 +80,7 @@ class DatabaseHelper {
           $columnRawMaterialId INTEGER PRIMARY KEY,
           $columnName TEXT NOT NULL,
           $columnRawMaterialRemainingQuantity INTEGER NOT NULL,
-          $columnPrice REAL NOT NULL, 
+          $columnPrice REAL, 
           $columnDescription TEXT
         )
       ''');
@@ -105,6 +107,45 @@ class DatabaseHelper {
           FOREIGN KEY ($columnGoodsId) REFERENCES $tableGoods ($columnGoodsId) ON DELETE CASCADE
         )
       ''');
+    }
+    if (oldVersion < 3 && oldVersion > 0) {
+      // Add any future migrations here
+      await db.execute('ALTER TABLE $tableGoods RENAME TO ${tableGoods}_old;');
+      await db.execute('ALTER TABLE $tableRawMaterials RENAME TO ${tableRawMaterials}_old;');
+      batch.execute('''
+        CREATE TABLE $tableGoods (
+          $columnGoodsId INTEGER PRIMARY KEY AUTOINCREMENT, 
+          $columnName TEXT NOT NULL,
+          $columnGoodsRemainingQuantity INTEGER NOT NULL,
+          $columnPrice REAL, 
+          $columnDescription TEXT
+        )
+        CREATE TABLE $tableRawMaterials (
+          $columnRawMaterialId INTEGER PRIMARY KEY AUTOINCREMENT,
+          $columnName TEXT NOT NULL,
+          $columnRawMaterialRemainingQuantity INTEGER NOT NULL,
+          $columnPrice REAL, 
+          $columnDescription TEXT
+        )
+      ''');
+      await db.execute('''
+        INSERT INTO $tableGoods (
+          $columnGoodsId, $columnName, $columnGoodsRemainingQuantity, $columnPrice, $columnDescription
+        )
+        SELECT
+          $columnGoodsId, $columnName, $columnGoodsRemainingQuantity, $columnPrice, $columnDescription
+        FROM ${tableGoods}_old;
+      ''');
+      await db.execute('''
+        INSERT INTO $tableRawMaterials (
+          $columnRawMaterialId, $columnName, $columnRawMaterialRemainingQuantity, $columnPrice, $columnDescription
+        )
+        SELECT
+          $columnRawMaterialId, $columnName, $columnRawMaterialRemainingQuantity, $columnPrice, $columnDescription
+        FROM ${tableRawMaterials}_old;
+      ''');
+      await db.execute('DROP TABLE ${tableGoods}_old;');
+      await db.execute('DROP TABLE ${tableRawMaterials}_old;');      
     }
     await batch.commit();
   }
@@ -196,6 +237,73 @@ class DatabaseHelper {
     return List.generate(maps.length, (i) => Goods.fromMap(maps[i]));
   }
 
+  /// Updates a Good and replaces its entire Bill of Materials in a single transaction.
+  Future<void> updateGoodAndBOM(Goods good, List<BillOfMaterialEntry> bomEntries) async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      // 1. Update the good itself
+      await txn.update(tableGoods, good.toMap(), where: '$columnGoodsId = ?', whereArgs: [good.goodsID]);
+      
+      // 2. Delete all old BOM entries for this good
+      await txn.delete(tableBillOfMaterials, where: '$columnGoodsId = ?', whereArgs: [good.goodsID]);
+
+      // 3. Insert all the new BOM entries
+      for (final entry in bomEntries) {
+        await txn.insert(tableBillOfMaterials, entry.toMap());
+      }
+    });
+  }
+
+  Future<List<BillOfMaterialEntry>> getBillOfMaterialEntriesForRawMaterial(int rawMaterialId) async {
+    Database db = await instance.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      tableBillOfMaterials,
+      where: '$columnRawMaterialId = ?',
+      whereArgs: [rawMaterialId],
+    );
+    return List.generate(maps.length, (i) {
+      return BillOfMaterialEntry.fromMap(maps[i]);
+    });
+  }
+
+  Future<List<BillOfMaterialEntry>> getBOMEntriesForRawMaterialWithGoodNames(int rawMaterialId) async {
+    Database db = await instance.database;
+    final String query = '''
+      SELECT
+        bom.$columnGoodsId,
+        bom.$columnRawMaterialId,
+        bom.$columnQuantityNeeded,
+        g.$columnName
+      FROM
+        $tableBillOfMaterials bom
+      JOIN
+        $tableGoods g ON bom.$columnGoodsId = g.$columnGoodsId
+      WHERE
+        bom.$columnRawMaterialId = ?
+    ''';
+    final List<Map<String, dynamic>> maps = await db.rawQuery(query, [rawMaterialId]);
+    return List.generate(maps.length, (i) {
+      return BillOfMaterialEntry.fromMap(maps[i]);
+    });
+  }
+
+  /// Updates a RawMaterial and replaces all BOM entries it's a part of.
+  Future<void> updateRawMaterialAndBOM(RawMaterials material, List<BillOfMaterialEntry> bomEntries) async {
+      final db = await instance.database;
+      await db.transaction((txn) async {
+          // 1. Update the raw material
+          await txn.update(tableRawMaterials, material.toMap(), where: '$columnRawMaterialId = ?', whereArgs: [material.materialID]);
+
+          // 2. Delete all old BOM entries for this material
+          await txn.delete(tableBillOfMaterials, where: '$columnRawMaterialId = ?', whereArgs: [material.materialID]);
+
+          // 3. Insert all the new BOM entries
+          for (final entry in bomEntries) {
+              await txn.insert(tableBillOfMaterials, entry.toMap());
+          }
+      });
+  }
+
 
   // --- PendingGoods Table Operations ---
 
@@ -237,19 +345,79 @@ class DatabaseHelper {
     });
   }
 
+  /// When production is completed, we update the pending good's status to 0.
   Future<void> completeProduction(PendingGood pendingGood) async {
     final db = await instance.database;
+    // The transaction now only performs a single action.
     await db.transaction((txn) async {
-      final goodMaps = await txn.query(tableGoods, where: '$columnGoodsId = ?', whereArgs: [pendingGood.goodsId]);
-      if (goodMaps.isEmpty) throw Exception("Good not found.");
+        // Update the status to 0 (completed). The quantity no longer goes to the Goods table.
+        await txn.update(
+            tablePendingGoods,
+            {columnStatus: 0},
+            where: '$columnPendingId = ?',
+            whereArgs: [pendingGood.pendingId],
+        );
+    });
+  }
+
+  Future<List<PendingGood>> getAllInStoreGoods() async {
+    Database db = await instance.database;
+    final String query = '''
+      SELECT
+        pg.$columnPendingId, pg.$columnGoodsId, pg.$columnQuantityInProduction, 
+        pg.$columnStartDate, pg.$columnStatus, g.$columnName
+      FROM
+        $tablePendingGoods pg
+      JOIN
+        $tableGoods g ON pg.$columnGoodsId = g.$columnGoodsId
+      WHERE
+        pg.$columnStatus = 0
+      ORDER BY pg.$columnStartDate DESC
+    ''';
+    final List<Map<String, dynamic>> maps = await db.rawQuery(query);
+    return List.generate(maps.length, (i) => PendingGood.fromMap(maps[i]));
+  }
+  
+  Future<void> stockInStoreGood(PendingGood completedGood) async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      // 1. Get the corresponding Good to update its stock
+      final goodMaps = await txn.query(
+        tableGoods,
+        where: '$columnGoodsId = ?',
+        whereArgs: [completedGood.goodsId],
+      );
+      if (goodMaps.isEmpty) {
+        throw Exception("Cannot find corresponding good to stock this item into.");
+      }
       final good = Goods.fromMap(goodMaps.first);
 
-      await txn.update(tableGoods, {columnGoodsRemainingQuantity: good.quality + pendingGood.quantityInProduction}, where: '$columnGoodsId = ?', whereArgs: [pendingGood.goodsId]);
-      
-      await txn.update(tablePendingGoods, {columnStatus: 0}, where: '$columnPendingId = ?', whereArgs: [pendingGood.pendingId]);
+      // 2. Add the quantity to the existing good's stock
+      await txn.update(
+        tableGoods,
+        {columnGoodsRemainingQuantity: good.quality + completedGood.quantityInProduction},
+        where: '$columnGoodsId = ?',
+        whereArgs: [good.goodsID],
+      );
+
+      // 3. Delete the record from the pending_goods table as it is now fully stocked.
+      await txn.delete(
+        tablePendingGoods,
+        where: '$columnPendingId = ?',
+        whereArgs: [completedGood.pendingId],
+      );
     });
   }
   
+  Future<int> deletePendingGood(int pendingId) async {
+    final db = await instance.database;
+    return await db.delete(
+      tablePendingGoods,
+      where: '$columnPendingId = ?',
+      whereArgs: [pendingId],
+    );
+  }
+
   Future<void> cancelProduction(PendingGood pendingGood) async {
     final db = await instance.database;
     await db.transaction((txn) async {
@@ -263,7 +431,7 @@ class DatabaseHelper {
         await txn.update(tableRawMaterials, {columnRawMaterialRemainingQuantity: material.quality + consumedQty}, where: '$columnRawMaterialId = ?', whereArgs: [entry.rawMaterialId]);
       }
       
-      await txn.update(tablePendingGoods, {columnStatus: 0}, where: '$columnPendingId = ?', whereArgs: [pendingGood.pendingId]);
+      await deletePendingGood(pendingGood.pendingId!);
     });
   }
 }
