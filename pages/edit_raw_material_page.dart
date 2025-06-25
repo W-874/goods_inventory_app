@@ -66,9 +66,88 @@ class _EditRawMaterialPageState extends State<EditRawMaterialPage> {
   }
 
   // --- [ _showSnackBar and _showGoodsSelectionDialog methods are similar to add_raw_material_page ] ---
-  void _showSnackBar(String message, {bool isError = false}) { /* ... */ }
-  Future<void> _showGoodsSelectionDialog() async { /* ... */ }
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Theme.of(context).colorScheme.error : Colors.green,
+      ),
+    );
+  }
 
+  Future<void> _showGoodsSelectionDialog() async {
+    // Use a temporary map to manage selections within the dialog
+    Map<int, Goods> tempSelectedGoods = Map.from(_selectedGoodsMap);
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('选择关联商品'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: _allGoods.isEmpty
+                    ? const Text('未找到商品, 请先添加至少一个商品.')
+                    : ListView.builder(
+                        itemCount: _allGoods.length,
+                        itemBuilder: (context, index) {
+                          final good = _allGoods[index];
+                          final isSelected = tempSelectedGoods.containsKey(good.goodsID);
+                          return CheckboxListTile(
+                            title: Text(good.name),
+                            value: isSelected,
+                            onChanged: (bool? value) {
+                              setDialogState(() {
+                                if (value == true) {
+                                  tempSelectedGoods[good.goodsID!] = good;
+                                } else {
+                                  tempSelectedGoods.remove(good.goodsID);
+                                }
+                              });
+                            },
+                          );
+                        },
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('取消'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedGoodsMap = tempSelectedGoods;
+                      // Create controllers for new selections and dispose of old ones
+                      final oldKeys = _quantityNeededControllers.keys.toSet();
+                      final newKeys = _selectedGoodsMap.keys.toSet();
+                      
+                      final keysToRemove = oldKeys.difference(newKeys);
+                      for (var key in keysToRemove) {
+                        _quantityNeededControllers[key]?.dispose();
+                        _quantityNeededControllers.remove(key);
+                      }
+
+                      for (var key in newKeys) {
+                        if (!_quantityNeededControllers.containsKey(key)) {
+                          _quantityNeededControllers[key] = TextEditingController();
+                        }
+                      }
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('完成'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   Future<void> _updateAll() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
@@ -77,7 +156,7 @@ class _EditRawMaterialPageState extends State<EditRawMaterialPage> {
     }
     for (var controller in _quantityNeededControllers.values) {
         if(controller.text.isEmpty || int.tryParse(controller.text) == null) {
-            _showSnackBar('Please enter a valid quantity for all selected goods.', isError: true);
+            _showSnackBar('请为所有选择的商品输入正确的数值.', isError: true);
             return;
         }
     }
@@ -103,7 +182,7 @@ class _EditRawMaterialPageState extends State<EditRawMaterialPage> {
             }).toList(),
         );
 
-        _showSnackBar('Raw Material updated successfully!');
+        _showSnackBar('原材料更新成功!');
         if (mounted) Navigator.pop(context);
 
     } catch (e) {

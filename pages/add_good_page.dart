@@ -78,11 +78,11 @@ class _AddGoodPageState extends State<AddGoodPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Select Required Materials'),
+              title: const Text('选择需要的原材料'),
               content: SizedBox(
                 width: double.maxFinite,
                 child: _allRawMaterials.isEmpty
-                    ? const Text('No raw materials found. Please add materials first.')
+                    ? const Text('未找到原材料. 请先添加原材料. ')
                     : ListView.builder(
                         itemCount: _allRawMaterials.length,
                         itemBuilder: (context, index) {
@@ -105,7 +105,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
                       ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
                 ElevatedButton(
                   onPressed: () {
                     setState(() {
@@ -126,7 +126,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
                     });
                     Navigator.pop(context);
                   },
-                  child: const Text('Done'),
+                  child: const Text('完成'),
                 ),
               ],
             );
@@ -144,7 +144,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
 
     for (var controller in _quantityNeededControllers.values) {
         if(controller.text.isEmpty || int.tryParse(controller.text) == null) {
-            _showSnackBar('Please enter a valid quantity for all selected materials.', isError: true);
+            _showSnackBar('请为所有选择的原材料输入正确的数值.', isError: true);
             return;
         }
     }

@@ -71,9 +71,81 @@ class _EditGoodPageState extends State<EditGoodPage> {
   }
 
   // --- [ _showSnackBar and _showMaterialSelectionDialog methods are identical to add_good_page ] ---
-  void _showSnackBar(String message, {bool isError = false}) { /* ... */ }
-  Future<void> _showMaterialSelectionDialog() async { /* ... */ }
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Theme.of(context).colorScheme.error : Colors.green,
+      ),
+    );
+  }
 
+  Future<void> _showMaterialSelectionDialog() async {
+    Map<int, RawMaterials> tempSelected = Map.from(_selectedMaterialsMap);
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('选择需要的原材料'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: _allRawMaterials.isEmpty
+                    ? const Text('未找到原材料. 请先添加原材料. ')
+                    : ListView.builder(
+                        itemCount: _allRawMaterials.length,
+                        itemBuilder: (context, index) {
+                          final material = _allRawMaterials[index];
+                          return CheckboxListTile(
+                            title: Text(material.name),
+                            subtitle: Text('ID: ${material.materialID}'),
+                            value: tempSelected.containsKey(material.materialID),
+                            onChanged: (bool? value) {
+                              setDialogState(() {
+                                if (value == true) {
+                                  tempSelected[material.materialID!] = material;
+                                } else {
+                                  tempSelected.remove(material.materialID);
+                                }
+                              });
+                            },
+                          );
+                        },
+                      ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedMaterialsMap = tempSelected;
+                      final oldKeys = _quantityNeededControllers.keys.toSet();
+                      final newKeys = _selectedMaterialsMap.keys.toSet();
+                      
+                      oldKeys.difference(newKeys).forEach((key) {
+                        _quantityNeededControllers[key]?.dispose();
+                        _quantityNeededControllers.remove(key);
+                      });
+
+                      for (var key in newKeys) {
+                        if (!_quantityNeededControllers.containsKey(key)) {
+                          _quantityNeededControllers[key] = TextEditingController();
+                        }
+                      }
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('完成'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   Future<void> _updateAll() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
@@ -82,7 +154,7 @@ class _EditGoodPageState extends State<EditGoodPage> {
     }
     for (var controller in _quantityNeededControllers.values) {
         if(controller.text.isEmpty || int.tryParse(controller.text) == null) {
-            _showSnackBar('Please enter a valid quantity for all selected materials.', isError: true);
+            _showSnackBar('请为所有选择的原材料输入正确的数值.', isError: true);
             return;
         }
     }
@@ -109,7 +181,7 @@ class _EditGoodPageState extends State<EditGoodPage> {
             }).toList(),
         );
 
-      _showSnackBar('Good updated successfully!');
+      _showSnackBar('商品更新成功!');
       if(mounted) Navigator.pop(context);
 
     } catch (e) {
