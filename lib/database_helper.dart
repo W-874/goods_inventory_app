@@ -9,10 +9,11 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'data_class.dart';
 import 'db_constants.dart';
+import 'models/models.dart';
 
 class DatabaseHelper {
   static const _databaseName = "MyInventory.db";
-  static const _databaseVersion = 3;
+  static const _databaseVersion = 6;
 
   // Make this a singleton class.
   DatabaseHelper._privateConstructor();
@@ -61,7 +62,7 @@ class DatabaseHelper {
     await _onUpgrade(db, 0, version);
   }
 
-  // Handles schema migrations
+
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
     var batch = db.batch();
     if (oldVersion < 1) {
@@ -72,7 +73,8 @@ class DatabaseHelper {
           $columnName TEXT NOT NULL,
           $columnGoodsRemainingQuantity INTEGER NOT NULL,
           $columnPrice REAL, 
-          $columnDescription TEXT
+          $columnDescription TEXT,
+          $columnIsComponent INTEGER NOT NULL DEFAULT 0
         )
       ''');
       batch.execute('''
@@ -147,31 +149,51 @@ class DatabaseHelper {
       await db.execute('DROP TABLE ${tableGoods}_old;');
       await db.execute('DROP TABLE ${tableRawMaterials}_old;');      
     }
+    if (oldVersion < 5) {
+      // Add the new table for Good-to-Good relationships
+      await db.execute('''
+        CREATE TABLE $tableGoodsBOM (
+          $columnFinalGoodId INTEGER NOT NULL,
+          $columnComponentGoodId INTEGER NOT NULL,
+          $columnQuantityNeeded INTEGER NOT NULL,
+          PRIMARY KEY ($columnFinalGoodId, $columnComponentGoodId),
+          FOREIGN KEY ($columnFinalGoodId) REFERENCES $tableGoods ($columnGoodsId) ON DELETE CASCADE,
+          FOREIGN KEY ($columnComponentGoodId) REFERENCES $tableGoods ($columnGoodsId) ON DELETE CASCADE
+        )
+      ''');
+    }
+    if (oldVersion > 0 && oldVersion < 6) {
+      // For existing users, add the new column to the goods table.
+      // We default it to 0 (false) so existing goods are treated as final products.
+      await db.execute('''
+        ALTER TABLE $tableGoods ADD COLUMN $columnIsComponent INTEGER NOT NULL DEFAULT 0;
+      ''');
+    }
     await batch.commit();
   }
   
   // --- Goods Table Operations ---
-  Future<int> createGood(Goods good) async {
+  Future<int> createGood(Good good) async {
     Database db = await instance.database;
     return await db.insert(tableGoods, good.toMap(forInsertAndAutoincrement: true));
   }
 
-  Future<Goods?> getGood(int id) async {
+  Future<Good?> getGood(int id) async {
     Database db = await instance.database;
     List<Map<String, dynamic>> maps = await db.query(tableGoods, where: '$columnGoodsId = ?', whereArgs: [id]);
-    if (maps.isNotEmpty) return Goods.fromMap(maps.first);
+    if (maps.isNotEmpty) return Good.fromMap(maps.first);
     return null;
   }
 
-  Future<List<Goods>> getAllGoods() async {
+  Future<List<Good>> getAllGoods() async {
     Database db = await instance.database;
     final List<Map<String, dynamic>> maps = await db.query(tableGoods);
-    return List.generate(maps.length, (i) => Goods.fromMap(maps[i]));
+    return List.generate(maps.length, (i) => Good.fromMap(maps[i]));
   }
 
-  Future<int> updateGood(Goods good) async {
+  Future<int> updateGood(Good good) async {
     Database db = await instance.database;
-    return await db.update(tableGoods, good.toMap(), where: '$columnGoodsId = ?', whereArgs: [good.goodsID]);
+    return await db.update(tableGoods, good.toMap(), where: '$columnGoodsId = ?', whereArgs: [good.goodsId]);
   }
 
   Future<int> deleteGood(int id) async {
@@ -211,12 +233,6 @@ class DatabaseHelper {
   // --- BillOfMaterials Table Operations ---
   Future<List<BillOfMaterialEntry>> getBillOfMaterialEntriesForGood(int goodsId) async {
     Database db = await instance.database;
-    final List<Map<String, dynamic>> maps = await db.query(tableBillOfMaterials, where: '$columnGoodsId = ?', whereArgs: [goodsId]);
-    return List.generate(maps.length, (i) => BillOfMaterialEntry.fromMap(maps[i]));
-  }
-
-  Future<List<BillOfMaterialEntry>> getBillOfMaterialsWithNames(int goodsId) async {
-    Database db = await instance.database;
     final String query = '''
       SELECT bom.$columnGoodsId, bom.$columnRawMaterialId, bom.$columnQuantityNeeded, rm.$columnName
       FROM $tableBillOfMaterials bom JOIN $tableRawMaterials rm ON bom.$columnRawMaterialId = rm.$columnRawMaterialId
@@ -226,7 +242,7 @@ class DatabaseHelper {
     return List.generate(maps.length, (i) => BillOfMaterialEntry.fromMap(maps[i]));
   }
 
-  Future<List<Goods>> getGoodsUsingRawMaterial(int rawMaterialId) async {
+  Future<List<Good>> getGoodsUsingRawMaterial(int rawMaterialId) async {
     final db = await instance.database;
     final String query = '''
       SELECT g.* FROM $tableGoods g
@@ -234,18 +250,18 @@ class DatabaseHelper {
       WHERE bom.$columnRawMaterialId = ?
     ''';
     final List<Map<String, dynamic>> maps = await db.rawQuery(query, [rawMaterialId]);
-    return List.generate(maps.length, (i) => Goods.fromMap(maps[i]));
+    return List.generate(maps.length, (i) => Good.fromMap(maps[i]));
   }
 
   /// Updates a Good and replaces its entire Bill of Materials in a single transaction.
-  Future<void> updateGoodAndBOM(Goods good, List<BillOfMaterialEntry> bomEntries) async {
+  Future<void> updateGoodAndBOM(Good good, List<BillOfMaterialEntry> bomEntries) async {
     final db = await instance.database;
     await db.transaction((txn) async {
       // 1. Update the good itself
-      await txn.update(tableGoods, good.toMap(), where: '$columnGoodsId = ?', whereArgs: [good.goodsID]);
+      await txn.update(tableGoods, good.toMap(), where: '$columnGoodsId = ?', whereArgs: [good.goodsId]);
       
       // 2. Delete all old BOM entries for this good
-      await txn.delete(tableBillOfMaterials, where: '$columnGoodsId = ?', whereArgs: [good.goodsID]);
+      await txn.delete(tableBillOfMaterials, where: '$columnGoodsId = ?', whereArgs: [good.goodsId]);
 
       // 3. Insert all the new BOM entries
       for (final entry in bomEntries) {
@@ -255,18 +271,6 @@ class DatabaseHelper {
   }
 
   Future<List<BillOfMaterialEntry>> getBillOfMaterialEntriesForRawMaterial(int rawMaterialId) async {
-    Database db = await instance.database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      tableBillOfMaterials,
-      where: '$columnRawMaterialId = ?',
-      whereArgs: [rawMaterialId],
-    );
-    return List.generate(maps.length, (i) {
-      return BillOfMaterialEntry.fromMap(maps[i]);
-    });
-  }
-
-  Future<List<BillOfMaterialEntry>> getBOMEntriesForRawMaterialWithGoodNames(int rawMaterialId) async {
     Database db = await instance.database;
     final String query = '''
       SELECT
@@ -287,7 +291,6 @@ class DatabaseHelper {
     });
   }
 
-  /// Updates a RawMaterial and replaces all BOM entries it's a part of.
   Future<void> updateRawMaterialAndBOM(RawMaterials material, List<BillOfMaterialEntry> bomEntries) async {
       final db = await instance.database;
       await db.transaction((txn) async {
@@ -304,9 +307,27 @@ class DatabaseHelper {
       });
   }
 
+  /// New method to get the Good-to-Good BOM entries for a final product.
+  Future<List<GoodBOMEntry>> getGoodsBOMForGood(int finalGoodId) async {
+    final db = await instance.database;
+    final String query = '''
+      SELECT
+        bom.$columnFinalGoodId,
+        bom.$columnComponentGoodId,
+        bom.$columnQuantityNeeded,
+        g.$columnName
+      FROM
+        $tableGoodsBOM bom
+      JOIN
+        $tableGoods g ON bom.$columnComponentGoodId = g.$columnGoodsId
+      WHERE
+        bom.$columnFinalGoodId = ?
+    ''';
+    final maps = await db.rawQuery(query, [finalGoodId]);
+    return List.generate(maps.length, (i) => GoodBOMEntry.fromMap(maps[i]));
+  }
 
   // --- PendingGoods Table Operations ---
-
   Future<List<PendingGood>> getAllPendingGoods() async {
     Database db = await instance.database;
     final String query = '''
@@ -321,26 +342,32 @@ class DatabaseHelper {
   Future<void> startProduction(int goodsId, int quantityToProduce) async {
     final db = await instance.database;
     await db.transaction((txn) async {
-      final bomMaps = await txn.query(tableBillOfMaterials, where: '$columnGoodsId = ?', whereArgs: [goodsId]);
-      if (bomMaps.isEmpty) throw Exception("This good has no Bill of Materials defined.");
-      final bomEntries = bomMaps.map((map) => BillOfMaterialEntry.fromMap(map)).toList();
 
-      for (final entry in bomEntries) {
+      final rawMaterialBOMs = await txn.query(tableBillOfMaterials, where: '$columnGoodsId = ?', whereArgs: [goodsId]);
+      final rawMaterialEntries = rawMaterialBOMs.map((map) => BillOfMaterialEntry.fromMap(map)).toList();
+      final goodsBOMs = await txn.query(tableGoodsBOM, where: '$columnFinalGoodId = ?', whereArgs: [goodsId]);
+      final goodBOMEntries = goodsBOMs.map((map) => GoodBOMEntry.fromMap(map)).toList();
+
+      if (rawMaterialEntries.isEmpty && goodBOMEntries.isEmpty) {
+        throw Exception("This good has no Bill of Materials defined.");
+      }
+
+      for (final entry in rawMaterialEntries) {
         final requiredQty = entry.quantityNeeded * quantityToProduce;
         final materialMaps = await txn.query(tableRawMaterials, where: '$columnRawMaterialId = ?', whereArgs: [entry.rawMaterialId]);
         final material = RawMaterials.fromMap(materialMaps.first);
-
         if (material.quality < requiredQty) throw Exception("Not enough ${material.name}. Required: $requiredQty, Available: ${material.quality}");
-        
         await txn.update(tableRawMaterials, {columnRawMaterialRemainingQuantity: material.quality - requiredQty}, where: '$columnRawMaterialId = ?', whereArgs: [entry.rawMaterialId]);
       }
+      for (final entry in goodBOMEntries) {
+        final requiredQty = entry.quantityNeeded * quantityToProduce;
+        final goodMaps = await txn.query(tableGoods, where: '$columnGoodsId = ?', whereArgs: [entry.componentGoodId]);
+        final componentGood = Good.fromMap(goodMaps.first);
+        if (componentGood.quantity < requiredQty) throw Exception("Not enough ${componentGood.name}. Required: $requiredQty, Available: ${componentGood.quantity}");
+        await txn.update(tableGoods, {columnGoodsRemainingQuantity: componentGood.quantity - requiredQty}, where: '$columnGoodsId = ?', whereArgs: [entry.componentGoodId]);
+      }
 
-      final pendingGood = PendingGood(
-        goodsId: goodsId,
-        quantityInProduction: quantityToProduce,
-        startDate: DateTime.now(),
-        isUnderConstruction: true,
-      );
+      final pendingGood = PendingGood(goodsId: goodsId, quantityInProduction: quantityToProduce, startDate: DateTime.now(), isUnderConstruction: true);
       await txn.insert(tablePendingGoods, pendingGood.toMap());
     });
   }
@@ -348,7 +375,6 @@ class DatabaseHelper {
   /// When production is completed, we update the pending good's status to 0.
   Future<void> completeProduction(PendingGood pendingGood) async {
     final db = await instance.database;
-    // The transaction now only performs a single action.
     await db.transaction((txn) async {
         // Update the status to 0 (completed). The quantity no longer goes to the Goods table.
         await txn.update(
@@ -390,14 +416,14 @@ class DatabaseHelper {
       if (goodMaps.isEmpty) {
         throw Exception("Cannot find corresponding good to stock this item into.");
       }
-      final good = Goods.fromMap(goodMaps.first);
+      final good = Good.fromMap(goodMaps.first);
 
       // 2. Add the quantity to the existing good's stock
       await txn.update(
         tableGoods,
-        {columnGoodsRemainingQuantity: good.quality + completedGood.quantityInProduction},
+        {columnGoodsRemainingQuantity: good.quantity + completedGood.quantityInProduction},
         where: '$columnGoodsId = ?',
-        whereArgs: [good.goodsID],
+        whereArgs: [good.goodsId],
       );
 
       // 3. Delete the record from the pending_goods table as it is now fully stocked.
@@ -423,12 +449,20 @@ class DatabaseHelper {
     await db.transaction((txn) async {
       final bomMaps = await txn.query(tableBillOfMaterials, where: '$columnGoodsId = ?', whereArgs: [pendingGood.goodsId]);
       final bomEntries = bomMaps.map((map) => BillOfMaterialEntry.fromMap(map)).toList();
+      final goodsBOMMaps = await txn.query(tableGoodsBOM, where: '$columnFinalGoodId = ?', whereArgs: [pendingGood.goodsId]);
+      final goodsBOMEntries = goodsBOMMaps.map((map) => GoodBOMEntry.fromMap(map)).toList();
 
       for (final entry in bomEntries) {
         final consumedQty = entry.quantityNeeded * pendingGood.quantityInProduction;
         final materialMaps = await txn.query(tableRawMaterials, where: '$columnRawMaterialId = ?', whereArgs: [entry.rawMaterialId]);
         final material = RawMaterials.fromMap(materialMaps.first);
         await txn.update(tableRawMaterials, {columnRawMaterialRemainingQuantity: material.quality + consumedQty}, where: '$columnRawMaterialId = ?', whereArgs: [entry.rawMaterialId]);
+      }
+      for (final entry in goodsBOMEntries) {
+        final consumedQty = entry.quantityNeeded * pendingGood.quantityInProduction;
+        final goodMaps = await txn.query(tableGoods, where: '$columnGoodsId = ?', whereArgs: [entry.componentGoodId]);
+        final componentGood = Good.fromMap(goodMaps.first);
+        await txn.update(tableGoods, {columnGoodsRemainingQuantity: componentGood.quantity + consumedQty}, where: '$columnGoodsId = ?', whereArgs: [entry.componentGoodId]);
       }
       
       await deletePendingGood(pendingGood.pendingId!);

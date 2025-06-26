@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:goods_inventory_app/database_helper.dart';
 import 'package:goods_inventory_app/data_class.dart';
 import 'edit_good_page.dart'; // Import the edit page
+import 'package:goods_inventory_app/models/models.dart';
 
 class GoodDetailPage extends StatefulWidget {
-  final Goods good;
+  final Good good;
 
   const GoodDetailPage({super.key, required this.good});
 
@@ -15,7 +16,7 @@ class GoodDetailPage extends StatefulWidget {
 
 class _GoodDetailPageState extends State<GoodDetailPage> {
   final dbHelper = DatabaseHelper.instance;
-  late Goods _currentGood;
+  late Good _currentGood;
 
   @override
   void initState() {
@@ -25,7 +26,7 @@ class _GoodDetailPageState extends State<GoodDetailPage> {
 
   // Helper method to refresh the good's data from the database
   Future<void> _refreshGood() async {
-    final good = await dbHelper.getGood(_currentGood.goodsID!);
+    final good = await dbHelper.getGood(_currentGood.goodsId!);
     if (good != null && mounted) {
       setState(() {
         _currentGood = good;
@@ -49,7 +50,7 @@ class _GoodDetailPageState extends State<GoodDetailPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('当前数量: ${_currentGood.quality}'),
+                Text('当前数量: ${_currentGood.quantity}'),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: controller,
@@ -60,7 +61,7 @@ class _GoodDetailPageState extends State<GoodDetailPage> {
                     if (value == null || value.isEmpty) return '请输入数量';
                     final change = int.tryParse(value);
                     if (change == null) return '请输入有效的数字';
-                    if (_currentGood.quality + change < 0) return '库存不能为负';
+                    if (_currentGood.quantity + change < 0) return '库存不能为负';
                     return null;
                   },
                 ),
@@ -74,7 +75,7 @@ class _GoodDetailPageState extends State<GoodDetailPage> {
               onPressed: () async {
                 if (formKey.currentState?.validate() ?? false) {
                   final change = int.tryParse(controller.text) ?? 0;
-                  final updatedGood = _currentGood.copyWith(quality: _currentGood.quality + change);
+                  final updatedGood = _currentGood.copyWith(quality: _currentGood.quantity + change);
                   await dbHelper.updateGood(updatedGood);
                   Navigator.of(context).pop();
                   _refreshGood();
@@ -131,9 +132,9 @@ class _GoodDetailPageState extends State<GoodDetailPage> {
                     children: [
                       Text('详细信息', style: textTheme.titleLarge),
                       const Divider(),
-                      Text('ID: ${_currentGood.goodsID}', style: textTheme.bodyLarge),
+                      Text('ID: ${_currentGood.goodsId}', style: textTheme.bodyLarge),
                       const SizedBox(height: 8),
-                      Text('数量: ${_currentGood.quality}', style: textTheme.bodyLarge),
+                      Text('数量: ${_currentGood.quantity}', style: textTheme.bodyLarge),
                       if (_currentGood.description != null && _currentGood.description!.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Text('描述: ${_currentGood.description}', style: textTheme.bodyLarge),
@@ -153,7 +154,7 @@ class _GoodDetailPageState extends State<GoodDetailPage> {
                                 tooltip: '删除',
                                 onPressed: () async {
                                     if (await _showDeleteConfirmationDialog()) {
-                                        await dbHelper.deleteGood(_currentGood.goodsID!);
+                                        await dbHelper.deleteGood(_currentGood.goodsId!);
                                         if (mounted) Navigator.pop(context, true); // Pop with success
                                     }
                                 },
@@ -168,7 +169,7 @@ class _GoodDetailPageState extends State<GoodDetailPage> {
               Text('需求的原料', style: textTheme.titleLarge),
               const SizedBox(height: 8),
               FutureBuilder<List<BillOfMaterialEntry>>(
-                future: dbHelper.getBillOfMaterialsWithNames(_currentGood.goodsID!),
+                future: dbHelper.getBillOfMaterialEntriesForGood(_currentGood.goodsId!),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());

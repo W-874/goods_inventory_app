@@ -164,7 +164,7 @@ class _RawMaterialDetailPageState extends State<RawMaterialDetailPage> {
               Text('涉及的商品', style: textTheme.titleLarge),
               const SizedBox(height: 8),
               FutureBuilder<List<BillOfMaterialEntry>>(
-                future: dbHelper.getBOMEntriesForRawMaterialWithGoodNames(_currentMaterial.materialID!),
+                future: dbHelper.getBillOfMaterialEntriesForRawMaterial(_currentMaterial.materialID!),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());

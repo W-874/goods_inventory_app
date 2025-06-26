@@ -3,6 +3,7 @@ const String tableGoods = 'goods';
 const String tableRawMaterials = 'rawmaterials';
 const String tableBillOfMaterials = 'billofmaterials';
 const String tablePendingGoods = 'pending_goods';
+const String tableGoodsBOM = 'goods_bom';
 
 // --- Goods Table Columns ---
 const String columnGoodsId = 'goods_id';
@@ -10,6 +11,7 @@ const String columnName = 'name'; // Common column, but used with table prefix i
 const String columnGoodsRemainingQuantity = 'remaining_quantity';
 const String columnPrice = 'price';
 const String columnDescription = 'description';
+const String columnIsComponent = 'is_component';
 
 // --- RawMaterials Table Columns ---
 const String columnRawMaterialId = 'raw_material_id';
@@ -29,3 +31,8 @@ const String columnPendingId = 'pending_id';
 const String columnQuantityInProduction = 'quantity_in_production';
 const String columnStartDate = 'start_date';
 const String columnStatus = 'status';
+
+// --- Goods BOM Table Columns ---
+const String columnFinalGoodId = 'final_good_id';
+const String columnComponentGoodId = 'component_good_id';
+// columnQuantityNeeded is already defined

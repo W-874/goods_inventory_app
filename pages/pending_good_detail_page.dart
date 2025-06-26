@@ -182,7 +182,7 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
               Text('消耗的原材料', style: textTheme.titleLarge),
               const SizedBox(height: 8),
               FutureBuilder<List<BillOfMaterialEntry>>(
-                future: dbHelper.getBillOfMaterialsWithNames(widget.pendingGood.goodsId),
+                future: dbHelper.getBillOfMaterialEntriesForGood(widget.pendingGood.goodsId),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());

@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:goods_inventory_app/database_helper.dart';
 import 'package:goods_inventory_app/data_class.dart';
 import 'package:goods_inventory_app/db_constants.dart';
+import 'package:goods_inventory_app/models/models.dart';
 
 class EditGoodPage extends StatefulWidget {
-  final Goods good;
+  final Good good;
 
   const EditGoodPage({super.key, required this.good});
 
@@ -35,7 +36,7 @@ class _EditGoodPageState extends State<EditGoodPage> {
     super.initState();
     // Initialize controllers with the existing good's data
     _nameController = TextEditingController(text: widget.good.name);
-    _quantityController = TextEditingController(text: widget.good.quality.toString());
+    _quantityController = TextEditingController(text: widget.good.quantity.toString());
     _priceController = TextEditingController(text: widget.good.price.toString());
     _descriptionController = TextEditingController(text: widget.good.description);
 
@@ -44,7 +45,7 @@ class _EditGoodPageState extends State<EditGoodPage> {
 
   Future<void> _loadInitialData() async {
     final materials = await _dbHelper.getAllRawMaterials();
-    final bomEntries = await _dbHelper.getBillOfMaterialEntriesForGood(widget.good.goodsID!);
+    final bomEntries = await _dbHelper.getBillOfMaterialEntriesForGood(widget.good.goodsId!);
 
     if (mounted) {
       setState(() {
@@ -174,7 +175,7 @@ class _EditGoodPageState extends State<EditGoodPage> {
             _selectedMaterialsMap.keys.map((materialId) {
                 final quantity = int.parse(_quantityNeededControllers[materialId]!.text);
                 return BillOfMaterialEntry(
-                    goodsId: updatedGood.goodsID!,
+                    goodsId: updatedGood.goodsId!,
                     rawMaterialId: materialId,
                     quantityNeeded: quantity,
                 );

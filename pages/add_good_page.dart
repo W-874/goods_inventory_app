@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:goods_inventory_app/database_helper.dart';
 import 'package:goods_inventory_app/data_class.dart';
 import 'package:goods_inventory_app/db_constants.dart';
+import 'package:goods_inventory_app/models/models.dart';
 import 'package:sqflite/sqflite.dart';
 
 class AddGoodPage extends StatefulWidget {
@@ -24,10 +25,15 @@ class _AddGoodPageState extends State<AddGoodPage> {
   final _priceController = TextEditingController();
   final _descriptionController = TextEditingController();
 
+  bool _isComponent = false;
+
   // State for managing the Bill of Materials selection
   List<RawMaterials> _allRawMaterials = [];
   Map<int, RawMaterials> _selectedMaterialsMap = {}; // Key: rawMaterialId, Value: RawMaterial
-  Map<int, TextEditingController> _quantityNeededControllers = {}; // Key: rawMaterialId
+  Map<int, TextEditingController> _materialQuantityControllers = {}; // Key: rawMaterialId
+  List<Good> _allGoods = [];
+  Map<int, Good> _selectedComponentGoods = {};
+  Map<int, TextEditingController> _goodQuantityControllers = {};
 
   bool _isLoading = false;
 
@@ -35,6 +41,12 @@ class _AddGoodPageState extends State<AddGoodPage> {
   void initState() {
     super.initState();
     _loadAllRawMaterials();
+    _loadAllGoods();
+  }
+
+  Future<void> _loadAllGoods() async {
+    final goods = await _dbHelper.getAllGoods();
+    if(mounted) setState(() => _allGoods = goods);
   }
 
   Future<void> _loadAllRawMaterials() async {
@@ -54,7 +66,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
     _quantityController.dispose();
     _priceController.dispose();
     _descriptionController.dispose();
-    for (var controller in _quantityNeededControllers.values) {
+    for (var controller in _materialQuantityControllers.values) {
       controller.dispose();
     }
     super.dispose();
@@ -110,17 +122,17 @@ class _AddGoodPageState extends State<AddGoodPage> {
                   onPressed: () {
                     setState(() {
                       _selectedMaterialsMap = tempSelected;
-                      final oldKeys = _quantityNeededControllers.keys.toSet();
+                      final oldKeys = _materialQuantityControllers.keys.toSet();
                       final newKeys = _selectedMaterialsMap.keys.toSet();
                       
                       oldKeys.difference(newKeys).forEach((key) {
-                        _quantityNeededControllers[key]?.dispose();
-                        _quantityNeededControllers.remove(key);
+                        _materialQuantityControllers[key]?.dispose();
+                        _materialQuantityControllers.remove(key);
                       });
 
                       for (var key in newKeys) {
-                        if (!_quantityNeededControllers.containsKey(key)) {
-                          _quantityNeededControllers[key] = TextEditingController();
+                        if (!_materialQuantityControllers.containsKey(key)) {
+                          _materialQuantityControllers[key] = TextEditingController();
                         }
                       }
                     });
@@ -136,13 +148,78 @@ class _AddGoodPageState extends State<AddGoodPage> {
     );
   }
 
+  Future<void> _showComponentGoodSelectionDialog() async {
+    Map<int, Good> tempSelected = Map.from(_selectedComponentGoods);
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('选择需要的半成品'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: _allGoods.isEmpty
+                    ? const Text('未找到商品. 请先添加商品. ')
+                    : ListView.builder(
+                        itemCount: _allGoods.length,
+                        itemBuilder: (context, index) {
+                          final good = _allGoods[index];
+                          return CheckboxListTile(
+                            title: Text(good.name),
+                            subtitle: Text('ID: ${good.goodsId}'),
+                            value: tempSelected.containsKey(good.goodsId),
+                            onChanged: (bool? value) {
+                              setDialogState(() {
+                                if (value == true) {
+                                  tempSelected[good.goodsId!] = good;
+                                } else {
+                                  tempSelected.remove(good.goodsId);
+                                }
+                              });
+                            },
+                          );
+                        },
+                      ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedComponentGoods = tempSelected;
+                      final oldKeys = _goodQuantityControllers.keys.toSet();
+                      final newKeys = _selectedComponentGoods.keys.toSet();
+                      
+                      oldKeys.difference(newKeys).forEach((key) {
+                        _goodQuantityControllers[key]?.dispose();
+                        _goodQuantityControllers.remove(key);
+                      });
+
+                      for (var key in newKeys) {
+                        if (!_goodQuantityControllers.containsKey(key)) {
+                          _goodQuantityControllers[key] = TextEditingController();
+                        }
+                      }
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('完成'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
   Future<void> _saveAll() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
         _showSnackBar('Please fix the errors in the form.', isError: true);
         return;
     }
 
-    for (var controller in _quantityNeededControllers.values) {
+    for (var controller in {..._materialQuantityControllers, ..._goodQuantityControllers}.values) {
         if(controller.text.isEmpty || int.tryParse(controller.text) == null) {
             _showSnackBar('请为所有选择的原材料输入正确的数值.', isError: true);
             return;
@@ -156,11 +233,12 @@ class _AddGoodPageState extends State<AddGoodPage> {
       await db.transaction((txn) async {
         final goodsIdFromForm = int.tryParse(_goodsIdController.text);
         
-        final newGood = Goods(
-          goodsID: goodsIdFromForm ?? 0,
+        final newGood = Good(
+          goodsId: goodsIdFromForm ?? 0,
           name: _nameController.text,
-          quality: int.parse(_quantityController.text),
+          quantity: int.parse(_quantityController.text),
           description: _descriptionController.text.isNotEmpty ? _descriptionController.text : null,
+          isComponent: _isComponent,
         );
 
         int newGoodsId;
@@ -176,13 +254,22 @@ class _AddGoodPageState extends State<AddGoodPage> {
         }
 
         for (final materialId in _selectedMaterialsMap.keys) {
-          final quantity = int.parse(_quantityNeededControllers[materialId]!.text);
+          final quantity = int.parse(_materialQuantityControllers[materialId]!.text);
           final bomEntry = BillOfMaterialEntry(
             goodsId: newGoodsId,
             rawMaterialId: materialId,
             quantityNeeded: quantity,
           );
           await txn.insert(tableBillOfMaterials, bomEntry.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+        for (final goodId in _selectedComponentGoods.keys) {
+            final quantity = int.parse(_goodQuantityControllers[goodId]!.text);
+            final goodBomEntry = GoodBOMEntry(
+                finalGoodId: newGoodsId,
+                componentGoodId: goodId,
+                quantityNeeded: quantity,
+            );
+            await txn.insert(tableGoodsBOM, goodBomEntry.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
         }
       });
 
@@ -255,16 +342,29 @@ class _AddGoodPageState extends State<AddGoodPage> {
                   decoration: const InputDecoration(labelText: '商品描述 (可选)', border: OutlineInputBorder()),
                   maxLines: 3,
                 ),
+                const SizedBox(height: 8),
+                // --- NEW SWITCH FOR isComponent ---
+                SwitchListTile(
+                  title: const Text('Is a Component?'),
+                  subtitle: const Text('Is this a semi-finished product used to make other goods?'),
+                  value: _isComponent,
+                  onChanged: (bool value) {
+                    setState(() {
+                      _isComponent = value;
+                    });
+                  },
+                ),
                 const Divider(height: 40, thickness: 1),
 
-                Text('所需原料 (可选)', style: Theme.of(context).textTheme.titleLarge),
+                Text('所需材料', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 16),
+                
+                Text('所需原材料', style: Theme.of(context).textTheme.titleMedium),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.add_link),
-                  label: const Text('选择原料...'),
+                  label: const Text('选择原材料...'),
                   onPressed: _showMaterialSelectionDialog,
                 ),
-                const SizedBox(height: 16),
                 
                 if (sortedSelectedMaterials.isNotEmpty)
                   ListView.builder(
@@ -282,7 +382,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
                             SizedBox(
                               width: 120,
                               child: TextFormField(
-                                controller: _quantityNeededControllers[material.materialID],
+                                controller: _materialQuantityControllers[material.materialID],
                                 decoration: const InputDecoration(labelText: 'Qty Needed', border: OutlineInputBorder()),
                                 keyboardType: TextInputType.number,
                                 validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? 'Req.' : null,
@@ -293,6 +393,44 @@ class _AddGoodPageState extends State<AddGoodPage> {
                       );
                     },
                   ),
+                const SizedBox(height: 16),
+
+                Text('所需半成品', style: Theme.of(context).textTheme.titleMedium),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.add_link),
+                  label: const Text('选择半成品...'),
+                  onPressed: _showComponentGoodSelectionDialog,
+                ),
+
+                if (_selectedComponentGoods.isNotEmpty)
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _selectedComponentGoods.length,
+                    itemBuilder: (context, index) {
+                      final good = _selectedComponentGoods.values.toList()..sort((a, b) => a.name.compareTo(b.name));
+                      final componentGood = good[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Row(
+                          children: [
+                            Expanded(child: Text(componentGood.name, style: const TextStyle(fontSize: 16))),
+                            const SizedBox(width: 16),
+                            SizedBox(
+                              width: 120,
+                              child: TextFormField(
+                                controller: _goodQuantityControllers[componentGood.goodsId],
+                                decoration: const InputDecoration(labelText: 'Qty Needed', border: OutlineInputBorder()),
+                                keyboardType: TextInputType.number,
+                                validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? 'Req.' : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                
                 const SizedBox(height: 24),
                 
                 ElevatedButton(

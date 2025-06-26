@@ -12,6 +12,7 @@ import 'raw_material_detail_page.dart';
 import 'pending_good_detail_page.dart';
 import "edit_good_page.dart";
 import "edit_raw_material_page.dart";
+import 'package:goods_inventory_app/models/models.dart';
 
 Future<void> main() async {
   // Ensure that plugin services are initialized for database path and async operations.
@@ -69,7 +70,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final dbHelper = DatabaseHelper.instance;
 
-  List<Goods> _componentGoods = [];
+  List<Good> _finalGoods = [];
+  List<Good> _componentGoods = [];
   List<RawMaterials> _rawMaterials = [];
   List<PendingGood> _pendingGoods = [];
   List<PendingGood> _inStoreGoods = [];
@@ -90,8 +92,10 @@ class _HomePageState extends State<HomePage> {
 
     if (mounted) {
       setState(() {
+        _finalGoods = allGoods.where((g) => !g.isComponent).toList();
+        _componentGoods = allGoods.where((g) => g.isComponent).toList();
+
         _inStoreGoods = inStoreData;
-        _componentGoods = allGoods; // Corrected: No longer filtering by isForStore
         _rawMaterials = rawMaterialsData;
         _pendingGoods = pendingGoodsData;
         _isLoading = false;
@@ -220,20 +224,19 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildGoodsList() {
-    if (_componentGoods.isEmpty) {
+  Widget _buildFinalGoodsList() {
+    if (_finalGoods.isEmpty) {
         return const Center(child: Text('未找到商品.\n按“ + ”号来添加.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)));
     }
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
-      itemCount: _componentGoods.length,
+      itemCount: _finalGoods.length,
       itemBuilder: (context, index) {
-        final good = _componentGoods[index];
+        final good = _finalGoods[index];
         return Card(
-          margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
             title: Text(good.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('数量: ${good.quality}'),
+            subtitle: Text('数量: ${good.quantity}'),
             onTap: () { // <-- ADDED
               Navigator.push(
                 context,
@@ -260,7 +263,48 @@ class _HomePageState extends State<HomePage> {
                   tooltip: '删除',
                   onPressed: () async {
                     if (await _showDeleteConfirmationDialog()) {
-                      await dbHelper.deleteGood(good.goodsID!);
+                      await dbHelper.deleteGood(good.goodsId!);
+                      _refreshData();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildComponentGoodsList() {
+    if (_componentGoods.isEmpty) { return const Center(child: Text('未找到半成品.\n按“ + ”号来添加.', textAlign: TextAlign.center)); }
+    return ListView.builder(
+      padding: const EdgeInsets.all(8.0),
+      itemCount: _componentGoods.length,
+      itemBuilder: (context, index) {
+        final good = _componentGoods[index];
+        return Card(
+          child: ListTile(
+            title: Text(good.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('数量: ${good.quantity}'),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GoodDetailPage(good: good))),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
+                  tooltip: '编辑半成品',
+                  onPressed: () async {
+                    await Navigator.push(context, MaterialPageRoute(builder: (context) => EditGoodPage(good: good)));
+                    _refreshData();
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  tooltip: '删除',
+                  onPressed: () async {
+                    if (await _showDeleteConfirmationDialog()) {
+                      await dbHelper.deleteGood(good.goodsId!);
                       _refreshData();
                     }
                   },
@@ -283,7 +327,7 @@ class _HomePageState extends State<HomePage> {
       itemBuilder: (context, index) {
         final material = _rawMaterials[index];
         return Card(
-          margin: const EdgeInsets.symmetric(vertical: 4.0),
+          //margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
             title: Text(material.name, style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('数量: ${material.quality}'),
@@ -375,16 +419,18 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('库存面板'),
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           bottom: const TabBar(
+            //isScrollable: true,
             tabs: [
               Tab(icon: Icon(Icons.build_circle_outlined), text: '生产中'),
               Tab(icon: Icon(Icons.storefront_outlined), text: '待入库'),
-              Tab(icon: Icon(Icons.inventory_2), text: '商品'),
+              Tab(icon: Icon(Icons.category_outlined), text: '商品'),
+              Tab(icon: Icon(Icons.inventory_2), text: '半成品'), 
               Tab(icon: Icon(Icons.layers), text: '原料'),
             ],
           ),
@@ -395,7 +441,8 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   _buildPendingGoodsList(),
                   _buildInStoreList(),
-                  _buildGoodsList(),
+                  _buildFinalGoodsList(), // New List View
+                  _buildComponentGoodsList(), // Old list now shows only components
                   _buildRawMaterialsList(),
                 ],
               ),

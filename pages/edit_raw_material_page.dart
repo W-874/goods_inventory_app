@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:goods_inventory_app/database_helper.dart';
 import 'package:goods_inventory_app/data_class.dart';
+import 'package:goods_inventory_app/models/models.dart';
 
 class EditRawMaterialPage extends StatefulWidget {
   final RawMaterials material;
@@ -22,8 +23,8 @@ class _EditRawMaterialPageState extends State<EditRawMaterialPage> {
   late TextEditingController _descriptionController;
 
   // State for managing which goods this material is a component of
-  List<Goods> _allGoods = [];
-  Map<int, Goods> _selectedGoodsMap = {};
+  List<Good> _allGoods = [];
+  Map<int, Good> _selectedGoodsMap = {};
   Map<int, TextEditingController> _quantityNeededControllers = {};
 
   bool _isLoading = false;
@@ -47,7 +48,7 @@ class _EditRawMaterialPageState extends State<EditRawMaterialPage> {
           setState(() {
               _allGoods = goods;
               for (var entry in bomEntries) {
-                  final good = goods.firstWhere((g) => g.goodsID == entry.goodsId);
+                  final good = goods.firstWhere((g) => g.goodsId == entry.goodsId);
                   _selectedGoodsMap[entry.goodsId] = good;
                   _quantityNeededControllers[entry.goodsId] = TextEditingController(text: entry.quantityNeeded.toString());
               }
@@ -78,7 +79,7 @@ class _EditRawMaterialPageState extends State<EditRawMaterialPage> {
 
   Future<void> _showGoodsSelectionDialog() async {
     // Use a temporary map to manage selections within the dialog
-    Map<int, Goods> tempSelectedGoods = Map.from(_selectedGoodsMap);
+    Map<int, Good> tempSelectedGoods = Map.from(_selectedGoodsMap);
 
     await showDialog(
       context: context,
@@ -95,16 +96,16 @@ class _EditRawMaterialPageState extends State<EditRawMaterialPage> {
                         itemCount: _allGoods.length,
                         itemBuilder: (context, index) {
                           final good = _allGoods[index];
-                          final isSelected = tempSelectedGoods.containsKey(good.goodsID);
+                          final isSelected = tempSelectedGoods.containsKey(good.goodsId);
                           return CheckboxListTile(
                             title: Text(good.name),
                             value: isSelected,
                             onChanged: (bool? value) {
                               setDialogState(() {
                                 if (value == true) {
-                                  tempSelectedGoods[good.goodsID!] = good;
+                                  tempSelectedGoods[good.goodsId!] = good;
                                 } else {
-                                  tempSelectedGoods.remove(good.goodsID);
+                                  tempSelectedGoods.remove(good.goodsId);
                                 }
                               });
                             },
@@ -272,7 +273,7 @@ class _EditRawMaterialPageState extends State<EditRawMaterialPage> {
                             SizedBox(
                               width: 120,
                               child: TextFormField(
-                                controller: _quantityNeededControllers[good.goodsID],
+                                controller: _quantityNeededControllers[good.goodsId],
                                 decoration: const InputDecoration(labelText: '需要数量', border: OutlineInputBorder()),
                                 keyboardType: TextInputType.number,
                                 validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? 'Req.' : null,

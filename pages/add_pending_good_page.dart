@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:goods_inventory_app/database_helper.dart';
 import 'package:goods_inventory_app/data_class.dart';
+import 'package:goods_inventory_app/models/models.dart';
 
 class AddPendingGoodPage extends StatefulWidget {
   const AddPendingGoodPage({super.key});
@@ -14,8 +15,8 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
   final _formKey = GlobalKey<FormState>();
   final _dbHelper = DatabaseHelper.instance;
 
-  Goods? _selectedGood;
-  List<Goods> _allGoods = [];
+  Good? _selectedGood;
+  List<Good> _allGoods = [];
   final _quantityController = TextEditingController();
 
   bool _isLoading = false;
@@ -58,7 +59,7 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
 
     try {
       await _dbHelper.startProduction(
-        _selectedGood!.goodsID!,
+        _selectedGood!.goodsId!,
         int.parse(_quantityController.text),
       );
       _showSnackBar('生产成功开始!');
@@ -89,19 +90,19 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                DropdownButtonFormField<Goods>(
+                DropdownButtonFormField<Good>(
                   value: _selectedGood,
                   decoration: const InputDecoration(
                     labelText: '选择要生产的商品',
                     border: OutlineInputBorder(),
                   ),
                   items: _allGoods.map((good) {
-                    return DropdownMenuItem<Goods>(
+                    return DropdownMenuItem<Good>(
                       value: good,
                       child: Text(good.name),
                     );
                   }).toList(),
-                  onChanged: (Goods? newValue) {
+                  onChanged: (Good? newValue) {
                     setState(() {
                       _selectedGood = newValue;
                     });
@@ -145,7 +146,7 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
                 const SizedBox(height: 24),
                 if (_selectedGood != null)
                   FutureBuilder<List<BillOfMaterialEntry>>(
-                    future: _dbHelper.getBillOfMaterialsWithNames(_selectedGood!.goodsID!),
+                    future: _dbHelper.getBillOfMaterialEntriesForGood(_selectedGood!.goodsId!),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                           return const Center(child: Padding(

@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:goods_inventory_app/database_helper.dart';
 import 'package:goods_inventory_app/data_class.dart';
 import 'package:goods_inventory_app/db_constants.dart';
+import 'package:goods_inventory_app/models/models.dart';
 
 class AddRawMaterialPage extends StatefulWidget {
   const AddRawMaterialPage({super.key});
@@ -24,8 +25,8 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
   final _priceController = TextEditingController();
   final _descriptionController = TextEditingController();
 
-  List<Goods> _allGoods = [];
-  Map<int, Goods> _selectedGoodsMap = {}; // Key: goodsId, Value: Good object
+  List<Good> _allGoods = [];
+  Map<int, Good> _selectedGoodsMap = {}; // Key: goodsId, Value: Good object
   Map<int, TextEditingController> _quantityNeededControllers = {}; // Key: goodsId, Value: Controller
 
   bool _isLoading = false;
@@ -69,7 +70,7 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
   }
   Future<void> _showGoodsSelectionDialog() async {
     // Use a temporary map to manage selections within the dialog
-    Map<int, Goods> tempSelectedGoods = Map.from(_selectedGoodsMap);
+    Map<int, Good> tempSelectedGoods = Map.from(_selectedGoodsMap);
 
     await showDialog(
       context: context,
@@ -86,16 +87,16 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
                         itemCount: _allGoods.length,
                         itemBuilder: (context, index) {
                           final good = _allGoods[index];
-                          final isSelected = tempSelectedGoods.containsKey(good.goodsID);
+                          final isSelected = tempSelectedGoods.containsKey(good.goodsId);
                           return CheckboxListTile(
                             title: Text(good.name),
                             value: isSelected,
                             onChanged: (bool? value) {
                               setDialogState(() {
                                 if (value == true) {
-                                  tempSelectedGoods[good.goodsID!] = good;
+                                  tempSelectedGoods[good.goodsId!] = good;
                                 } else {
-                                  tempSelectedGoods.remove(good.goodsID);
+                                  tempSelectedGoods.remove(good.goodsId);
                                 }
                               });
                             },
@@ -312,7 +313,7 @@ class _AddRawMaterialPageState extends State<AddRawMaterialPage> {
                             SizedBox(
                               width: 120,
                               child: TextFormField(
-                                controller: _quantityNeededControllers[good.goodsID],
+                                controller: _quantityNeededControllers[good.goodsId],
                                 decoration: const InputDecoration(labelText: '需要数量', border: OutlineInputBorder()),
                                 keyboardType: TextInputType.number,
                                 validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? 'Req.' : null,
