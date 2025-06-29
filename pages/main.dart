@@ -17,12 +17,7 @@ import 'package:goods_inventory_app/models/models.dart';
 Future<void> main() async {
   // Ensure that plugin services are initialized for database path and async operations.
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Explicitly initialize the database on startup.
-  // This triggers the _initDB() method in the helper if the database
-  // hasn't been created yet and ensures it's ready before any UI loads.
-  await DatabaseHelper.instance.database;
-  
+  await DatabaseHelper.instance.database; 
   runApp(const MyApp());
 }
 
@@ -168,6 +163,74 @@ class _HomePageState extends State<HomePage> {
     return result ?? false;
   }
 
+  Future<void> _showInStoreActionDialog({required PendingGood completedGood, required bool isStocking}) async {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final action = isStocking ? '入库' : '出库';
+    final goodName = completedGood.goodName ?? '物品';
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('$action Quantity for $goodName'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('剩余待出库: ${completedGood.quantityInProduction}'),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: '$action 数量',
+                    border: const OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return '请输入数量';
+                    final qty = int.tryParse(value);
+                    if (qty == null || qty <= 0) return '数量不能为负';
+                    if (qty > completedGood.quantityInProduction) return '$action 不能超过剩余数量';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('取消'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            ElevatedButton(
+              child: Text(action),
+              onPressed: () async {
+                if (formKey.currentState?.validate() ?? false) {
+                  final quantity = int.parse(controller.text);
+                  try {
+                    if (isStocking) {
+                      await dbHelper.stockInStoreGood(completedGood, quantity);
+                    } else {
+                      await dbHelper.exportInStoreGood(completedGood, quantity);
+                    }
+                    Navigator.of(context).pop();
+                    _refreshData();
+                  } catch (e) {
+                     if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 // --- UI Builder Methods ---
   Widget _buildInStoreList() {
     if (_inStoreGoods.isEmpty) {
@@ -193,28 +256,12 @@ class _HomePageState extends State<HomePage> {
                 IconButton(
                   icon: const Icon(Icons.inventory_outlined, color: Colors.green),
                   tooltip: '入库',
-                  onPressed: () async {
-                    if (await _showDeleteConfirmationDialog(
-                        title: '确认入库?', 
-                        content: '这将会把 ${completedGood.quantityInProduction} 个 "${completedGood.goodName}" 加入到商品数目中.'
-                    )) {
-                        await dbHelper.stockInStoreGood(completedGood);
-                        _refreshData();
-                    }
-                  },
+                  onPressed: () => _showInStoreActionDialog(completedGood: completedGood, isStocking: true),
                 ),
                 IconButton(
                   icon: Icon(Icons.local_shipping_outlined, color: Theme.of(context).colorScheme.primary),
                   tooltip: '出库',
-                  onPressed: () async {
-                    if (await _showDeleteConfirmationDialog(
-                      title: '确认出库?',
-                      content: '这将不会计入到商品数目中, 但会删除待入库清单中的记录.'
-                    )) {
-                      await dbHelper.deletePendingGood(completedGood.pendingId!);
-                      _refreshData();
-                    }
-                  },
+                  onPressed: () => _showInStoreActionDialog(completedGood: completedGood, isStocking: false),
                 ),
               ],
             ),
@@ -226,7 +273,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildFinalGoodsList() {
     if (_finalGoods.isEmpty) {
-        return const Center(child: Text('未找到商品.\n按“ + ”号来添加.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)));
+        return const Center(child: Text('未找到商品.\n按“ + ”号来添加.', textAlign: TextAlign.center));
     }
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
@@ -319,7 +366,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildRawMaterialsList() {
     if (_rawMaterials.isEmpty) {
-      return const Center(child: Text('未找到原料.\n按“ + ”号来添加.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)));
+      return const Center(child: Text('未找到原料.\n按“ + ”号来添加.', textAlign: TextAlign.center));
     }
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),

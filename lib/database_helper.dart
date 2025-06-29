@@ -231,7 +231,7 @@ class DatabaseHelper {
   }
 
   // --- BillOfMaterials Table Operations ---
-  Future<List<BillOfMaterialEntry>> getBillOfMaterialEntriesForGood(int goodsId) async {
+  Future<List<BillOfMaterialEntry>> getRawMaterialBOMForGood(int goodsId) async {
     Database db = await instance.database;
     final String query = '''
       SELECT bom.$columnGoodsId, bom.$columnRawMaterialId, bom.$columnQuantityNeeded, rm.$columnName
@@ -254,18 +254,33 @@ class DatabaseHelper {
   }
 
   /// Updates a Good and replaces its entire Bill of Materials in a single transaction.
-  Future<void> updateGoodAndBOM(Good good, List<BillOfMaterialEntry> bomEntries) async {
+  Future<void> updateGoodAndBOM(Good good, List<BillOfMaterialEntry> materialBomEntries, List<GoodBOMEntry> goodBomEntries) async {
     final db = await instance.database;
     await db.transaction((txn) async {
       // 1. Update the good itself
-      await txn.update(tableGoods, good.toMap(), where: '$columnGoodsId = ?', whereArgs: [good.goodsId]);
+      await txn.update(
+        tableGoods, 
+        good.toMap(), 
+        where: '$columnGoodsId = ?', 
+        whereArgs: [good.goodsId]
+      );
       
-      // 2. Delete all old BOM entries for this good
-      await txn.delete(tableBillOfMaterials, where: '$columnGoodsId = ?', whereArgs: [good.goodsId]);
+      await txn.delete(
+        tableBillOfMaterials, 
+        where: '$columnGoodsId = ?', 
+        whereArgs: [good.goodsId]
+      );
+      await txn.delete(
+        tableGoodsBOM, 
+        where: '$columnFinalGoodId = ?', 
+        whereArgs: [good.goodsId]
+      );
 
-      // 3. Insert all the new BOM entries
-      for (final entry in bomEntries) {
+      for (final entry in materialBomEntries) {
         await txn.insert(tableBillOfMaterials, entry.toMap());
+      }
+      for (final entry in goodBomEntries) {
+        await txn.insert(tableGoodsBOM, entry.toMap());
       }
     });
   }
@@ -404,35 +419,71 @@ class DatabaseHelper {
     return List.generate(maps.length, (i) => PendingGood.fromMap(maps[i]));
   }
   
-  Future<void> stockInStoreGood(PendingGood completedGood) async {
+  Future<void> stockInStoreGood(PendingGood completedGood, int quantityToStock) async {
+    if (quantityToStock <= 0) return;
+    if (quantityToStock > completedGood.quantityInProduction) {
+      throw Exception("Cannot stock more than what is in store.");
+    }
+
     final db = await instance.database;
     await db.transaction((txn) async {
       // 1. Get the corresponding Good to update its stock
-      final goodMaps = await txn.query(
-        tableGoods,
-        where: '$columnGoodsId = ?',
-        whereArgs: [completedGood.goodsId],
-      );
-      if (goodMaps.isEmpty) {
-        throw Exception("Cannot find corresponding good to stock this item into.");
-      }
+      final goodMaps = await txn.query(tableGoods, where: '$columnGoodsId = ?', whereArgs: [completedGood.goodsId]);
+      if (goodMaps.isEmpty) throw Exception("Cannot find corresponding good to stock this item into.");
       final good = Good.fromMap(goodMaps.first);
 
       // 2. Add the quantity to the existing good's stock
       await txn.update(
         tableGoods,
-        {columnGoodsRemainingQuantity: good.quantity + completedGood.quantityInProduction},
+        {columnGoodsRemainingQuantity: good.quantity + quantityToStock},
         where: '$columnGoodsId = ?',
         whereArgs: [good.goodsId],
       );
 
-      // 3. Delete the record from the pending_goods table as it is now fully stocked.
-      await txn.delete(
-        tablePendingGoods,
-        where: '$columnPendingId = ?',
-        whereArgs: [completedGood.pendingId],
-      );
+      // 3. Update or delete the record from the pending_goods table
+      final newInStoreQuantity = completedGood.quantityInProduction - quantityToStock;
+      if (newInStoreQuantity > 0) {
+        // Just update the remaining quantity
+        await txn.update(
+            tablePendingGoods,
+            {columnQuantityInProduction: newInStoreQuantity},
+            where: '$columnPendingId = ?',
+            whereArgs: [completedGood.pendingId],
+        );
+      } else {
+        // The entire stock has been moved, so delete the record
+        await txn.delete(
+            tablePendingGoods,
+            where: '$columnPendingId = ?',
+            whereArgs: [completedGood.pendingId],
+        );
+      }
     });
+  }
+
+  Future<void> exportInStoreGood(PendingGood completedGood, int quantityToExport) async {
+    if (quantityToExport <= 0) return;
+    if (quantityToExport > completedGood.quantityInProduction) {
+      throw Exception("Cannot export more than what is in store.");
+    }
+    
+    final db = await instance.database;
+    final newInStoreQuantity = completedGood.quantityInProduction - quantityToExport;
+
+    if (newInStoreQuantity > 0) {
+      await db.update(
+          tablePendingGoods,
+          {columnQuantityInProduction: newInStoreQuantity},
+          where: '$columnPendingId = ?',
+          whereArgs: [completedGood.pendingId],
+      );
+    } else {
+      await db.delete(
+          tablePendingGoods,
+          where: '$columnPendingId = ?',
+          whereArgs: [completedGood.pendingId],
+      );
+    }
   }
   
   Future<int> deletePendingGood(int pendingId) async {

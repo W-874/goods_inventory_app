@@ -213,6 +213,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
       },
     );
   }
+  
   Future<void> _saveAll() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
         _showSnackBar('Please fix the errors in the form.', isError: true);
@@ -345,7 +346,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
                 const SizedBox(height: 8),
                 // --- NEW SWITCH FOR isComponent ---
                 SwitchListTile(
-                  title: const Text('Is a Component?'),
+                  title: const Text('半成品'),
                   subtitle: const Text('Is this a semi-finished product used to make other goods?'),
                   value: _isComponent,
                   onChanged: (bool value) {

@@ -120,7 +120,7 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
                     title: '入库?', 
                     content: '这将会把 ${widget.pendingGood.quantityInProduction} 个 "${widget.pendingGood.goodName}" 加入到商品数目中.'
                 )) {
-                    await dbHelper.stockInStoreGood(widget.pendingGood);
+                    await dbHelper.stockInStoreGood(widget.pendingGood, widget.pendingGood.quantityInProduction);
                     if(mounted) Navigator.pop(context, true); // Pop with a result to indicate success
                 }
               },
@@ -182,7 +182,7 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
               Text('消耗的原材料', style: textTheme.titleLarge),
               const SizedBox(height: 8),
               FutureBuilder<List<BillOfMaterialEntry>>(
-                future: dbHelper.getBillOfMaterialEntriesForGood(widget.pendingGood.goodsId),
+                future: dbHelper.getRawMaterialBOMForGood(widget.pendingGood.goodsId),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
