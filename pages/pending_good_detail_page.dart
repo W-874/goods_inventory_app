@@ -16,6 +16,7 @@ class PendingGoodDetailPage extends StatefulWidget {
 class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
   final dbHelper = DatabaseHelper.instance;
   bool _isLoading = false;
+  bool _hasChanges = false;
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
@@ -49,6 +50,72 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
     return result ?? false;
   }
 
+  /// New dialog to handle quantity input for In Store actions.
+  Future<void> _showInStoreActionDialog({required bool isStocking}) async {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final action = isStocking ? '入库' : '出库';
+    final goodName = widget.pendingGood.goodName ?? '物品';
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('$action Quantity for $goodName'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('剩余待出库: ${widget.pendingGood.quantityInProduction}'),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Quantity to $action',
+                    border: const OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Please enter a quantity';
+                    final qty = int.tryParse(value);
+                    if (qty == null || qty <= 0) return 'Please enter a positive number';
+                    if (qty > widget.pendingGood.quantityInProduction) return 'Cannot $action more than available';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(child: const Text('Cancel'), onPressed: () => Navigator.of(context).pop()),
+            ElevatedButton(
+              child: Text(action),
+              onPressed: () async {
+                if (formKey.currentState?.validate() ?? false) {
+                  final quantity = int.parse(controller.text);
+                  try {
+                    if (isStocking) {
+                      await dbHelper.stockInStoreGood(widget.pendingGood, quantity);
+                    } else {
+                      await dbHelper.exportInStoreGood(widget.pendingGood, quantity);
+                    }
+                    _hasChanges = true;
+                    if(mounted) Navigator.of(context).pop(); // Close the dialog
+                  } catch (e) {
+                     if(mounted) _showSnackBar('Error: $e', isError: true);
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildActionButtons() {
     if (widget.pendingGood.isUnderConstruction) {
       // --- Actions for "In Production" items ---
@@ -66,7 +133,7 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
                     content: '这将会返还原材料到原材料库存中.'
                 )) {
                   await dbHelper.cancelProduction(widget.pendingGood);
-                  if(mounted) Navigator.pop(context, true); // Pop with a result to indicate success
+                  if(mounted) Navigator.pop(context, true); // Pop with success signal
                 }
               },
             ),
@@ -83,7 +150,7 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
                     content: '这将会把 ${widget.pendingGood.quantityInProduction} 个 "${widget.pendingGood.goodName}" 加入到待入库清单中.'
                 )) {
                     await dbHelper.completeProduction(widget.pendingGood);
-                    if(mounted) Navigator.pop(context, true); // Pop with a result to indicate success
+                    if(mounted) Navigator.pop(context, true); // Pop with success signal
                 }
               },
             ),
@@ -99,15 +166,7 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
             child: OutlinedButton.icon(
               icon: Icon(Icons.local_shipping_outlined, color: Theme.of(context).colorScheme.primary),
               label: const Text('出库'),
-              onPressed: () async {
-                 if (await _showConfirmationDialog(
-                    title: '确认出库?', 
-                    content: '这将不会计入到商品数目中, 但会删除待入库清单中的记录.'
-                )) {
-                    await dbHelper.deletePendingGood(widget.pendingGood.pendingId!);
-                    if(mounted) Navigator.pop(context, true); // Pop with a result to indicate success
-                }
-              },
+              onPressed: () => _showInStoreActionDialog(isStocking: false),
             ),
           ),
           const SizedBox(width: 16),
@@ -115,15 +174,7 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
             child: ElevatedButton.icon(
               icon: const Icon(Icons.inventory_outlined),
               label: const Text('入库'),
-              onPressed: () async {
-                if (await _showConfirmationDialog(
-                    title: '入库?', 
-                    content: '这将会把 ${widget.pendingGood.quantityInProduction} 个 "${widget.pendingGood.goodName}" 加入到商品数目中.'
-                )) {
-                    await dbHelper.stockInStoreGood(widget.pendingGood, widget.pendingGood.quantityInProduction);
-                    if(mounted) Navigator.pop(context, true); // Pop with a result to indicate success
-                }
-              },
+              onPressed: () => _showInStoreActionDialog(isStocking: true),
             ),
           ),
         ],
@@ -142,6 +193,11 @@ class _PendingGoodDetailPageState extends State<PendingGoodDetailPage> {
       appBar: AppBar(
         title: Text(widget.pendingGood.goodName ?? '生产详情'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        leading: BackButton(
+          onPressed: () {
+            Navigator.pop(context, _hasChanges);
+          },
+        ),        
       ),
       body: SingleChildScrollView(
         child: Padding(

@@ -184,8 +184,7 @@ class _EditRawMaterialPageState extends State<EditRawMaterialPage> {
         );
 
         _showSnackBar('原材料更新成功!');
-        if (mounted) Navigator.pop(context);
-
+      if (mounted) Navigator.pop(context, true); // Pop with success
     } catch (e) {
         _showSnackBar('An error occurred: $e', isError: true);
     } finally {
@@ -274,7 +273,7 @@ class _EditRawMaterialPageState extends State<EditRawMaterialPage> {
                               width: 120,
                               child: TextFormField(
                                 controller: _quantityNeededControllers[good.goodsId],
-                                decoration: const InputDecoration(labelText: '需要数量', border: OutlineInputBorder()),
+                                decoration: const InputDecoration(labelText: '所需数量', border: OutlineInputBorder()),
                                 keyboardType: TextInputType.number,
                                 validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? 'Req.' : null,
                               ),

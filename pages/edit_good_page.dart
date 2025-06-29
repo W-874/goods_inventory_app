@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:goods_inventory_app/database_helper.dart';
 import 'package:goods_inventory_app/data_class.dart';
-import 'package:goods_inventory_app/db_constants.dart';
 import 'package:goods_inventory_app/models/models.dart';
 
 class EditGoodPage extends StatefulWidget {
@@ -314,10 +313,10 @@ class _EditGoodPageState extends State<EditGoodPage> {
                   decoration: const InputDecoration(labelText: '商品描述 (可选)', border: OutlineInputBorder()),
                   maxLines: 3,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 SwitchListTile(
                   title: const Text('半成品'),
-                  subtitle: const Text('Is this a semi-finished product used to make other goods?'),
+                  //subtitle: const Text('Is this a semi-finished product used to make other goods?'),
                   value: _isComponent,
                   onChanged: (bool value) {
                     setState(() {
@@ -353,9 +352,9 @@ class _EditGoodPageState extends State<EditGoodPage> {
                               width: 120,
                               child: TextFormField(
                                 controller: _materialQuantityControllers[material.materialID],
-                                decoration: const InputDecoration(labelText: 'Qty Needed', border: OutlineInputBorder()),
+                                decoration: const InputDecoration(labelText: '所需数量', border: OutlineInputBorder()),
                                 keyboardType: TextInputType.number,
-                                validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? 'Req.' : null,
+                                validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? '必填.' : null,
                               ),
                             ),
                           ],
@@ -390,9 +389,9 @@ class _EditGoodPageState extends State<EditGoodPage> {
                               width: 120,
                               child: TextFormField(
                                 controller: _goodQuantityControllers[componentGood.goodsId],
-                                decoration: const InputDecoration(labelText: 'Qty Needed', border: OutlineInputBorder()),
+                                decoration: const InputDecoration(labelText: '所需数量', border: OutlineInputBorder()),
                                 keyboardType: TextInputType.number,
-                                validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? 'Req.' : null,
+                                validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? '必填.' : null,
                               ),
                             ),
                           ],

@@ -17,6 +17,7 @@ class GoodDetailPage extends StatefulWidget {
 class _GoodDetailPageState extends State<GoodDetailPage> {
   final dbHelper = DatabaseHelper.instance;
   late Good _currentGood;
+  bool _hasChanges = false; // Tracks if any data has been modified
 
   @override
   void initState() {
@@ -30,62 +31,9 @@ class _GoodDetailPageState extends State<GoodDetailPage> {
     if (good != null && mounted) {
       setState(() {
         _currentGood = good;
+        _hasChanges = true; // Mark that data has changed
       });
     }
-  }
-  
-  // Reusable dialog for updating quantity
-  Future<void> _showUpdateQuantityDialog() async {
-    final controller = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    return showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('为 ${_currentGood.name} 更新数量'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('当前数量: ${_currentGood.quantity}'),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: controller,
-                  autofocus: true,
-                  decoration: const InputDecoration(labelText: '修改 (+/-)', border: OutlineInputBorder()),
-                  keyboardType: const TextInputType.numberWithOptions(signed: true),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return '请输入数量';
-                    final change = int.tryParse(value);
-                    if (change == null) return '请输入有效的数字';
-                    if (_currentGood.quantity + change < 0) return '库存不能为负';
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(child: const Text('取消'), onPressed: () => Navigator.of(context).pop()),
-            ElevatedButton(
-              child: const Text('保存'),
-              onPressed: () async {
-                if (formKey.currentState?.validate() ?? false) {
-                  final change = int.tryParse(controller.text) ?? 0;
-                  final updatedGood = _currentGood.copyWith(quality: _currentGood.quantity + change);
-                  await dbHelper.updateGood(updatedGood);
-                  Navigator.of(context).pop();
-                  _refreshGood();
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
   }
 
   // Reusable dialog for confirming deletion
@@ -117,6 +65,11 @@ class _GoodDetailPageState extends State<GoodDetailPage> {
       appBar: AppBar(
         title: Text(_currentGood.name),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        leading: BackButton(
+          onPressed: () {
+            Navigator.pop(context, _hasChanges);
+          },
+        ),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -144,11 +97,6 @@ class _GoodDetailPageState extends State<GoodDetailPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                            IconButton(
-                                icon: Icon(Icons.edit_note, color: Theme.of(context).colorScheme.primary),
-                                tooltip: '更新数量',
-                                onPressed: _showUpdateQuantityDialog,
-                            ),
                             IconButton(
                                 icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                                 tooltip: '删除',

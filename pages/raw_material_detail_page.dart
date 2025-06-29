@@ -16,6 +16,7 @@ class RawMaterialDetailPage extends StatefulWidget {
 class _RawMaterialDetailPageState extends State<RawMaterialDetailPage> {
   final dbHelper = DatabaseHelper.instance;
   late RawMaterials _currentMaterial;
+  bool _hasChanges = false; // Tracks if any data has been modified
 
   @override
   void initState() {
@@ -28,61 +29,9 @@ class _RawMaterialDetailPageState extends State<RawMaterialDetailPage> {
     if (material != null && mounted) {
       setState(() {
         _currentMaterial = material;
+        _hasChanges = true; // Mark that data has changed
       });
     }
-  }
-
-  Future<void> _showUpdateQuantityDialog() async {
-    final controller = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    return showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('为 ${_currentMaterial.name} 更新数量'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('当前数量: ${_currentMaterial.quality}'),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: controller,
-                  autofocus: true,
-                  decoration: const InputDecoration(labelText: '修改 (+/-)', border: OutlineInputBorder()),
-                  keyboardType: const TextInputType.numberWithOptions(signed: true),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return '请输入数量';
-                    final change = int.tryParse(value);
-                    if (change == null) return '请输入有效的数字';
-                    if (_currentMaterial.quality + change < 0) return '库存不能为负';
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(child: const Text('取消'), onPressed: () => Navigator.of(context).pop()),
-            ElevatedButton(
-              child: const Text('保存'),
-              onPressed: () async {
-                if (formKey.currentState?.validate() ?? false) {
-                  final change = int.tryParse(controller.text) ?? 0;
-                  final updatedMaterial = _currentMaterial.copyWith(quality: _currentMaterial.quality + change);
-                  await dbHelper.updateRawMaterial(updatedMaterial);
-                  Navigator.of(context).pop();
-                  _refreshMaterial();
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
   }
 
   Future<bool> _showDeleteConfirmationDialog() async {
@@ -112,6 +61,11 @@ class _RawMaterialDetailPageState extends State<RawMaterialDetailPage> {
       appBar: AppBar(
         title: Text(_currentMaterial.name),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        leading: BackButton(
+          onPressed: () {
+            Navigator.pop(context, _hasChanges);
+          },
+        ),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -139,11 +93,6 @@ class _RawMaterialDetailPageState extends State<RawMaterialDetailPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                            IconButton(
-                                icon: Icon(Icons.edit_note, color: Theme.of(context).colorScheme.primary),
-                                tooltip: '更新数量',
-                                onPressed: _showUpdateQuantityDialog,
-                            ),
                             IconButton(
                                 icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                                 tooltip: '删除',
@@ -181,8 +130,8 @@ class _RawMaterialDetailPageState extends State<RawMaterialDetailPage> {
                         final bomEntry = snapshot.data![index];
                         return ListTile(
                           // Display the Good's name and the quantity needed
-                          title: Text(bomEntry.goodName ?? 'Unknown Good'),
-                          trailing: Text('Qty Needed: ${bomEntry.quantityNeeded}'),
+                          title: Text(bomEntry.goodName ?? '未知商品'),
+                          trailing: Text('所需数量: ${bomEntry.quantityNeeded}'),
                         );
                       },
                     ),

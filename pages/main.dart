@@ -247,8 +247,14 @@ class _HomePageState extends State<HomePage> {
             leading: const Icon(Icons.check_box, color: Colors.blueGrey),
             title: Text(completedGood.goodName ?? '未知商品', style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('数量: ${completedGood.quantityInProduction} | 完成于: $formattedDate'),
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => PendingGoodDetailPage(pendingGood: completedGood)));
+            onTap: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => PendingGoodDetailPage(pendingGood: completedGood)),
+              );
+              if (result == true) { 
+                _refreshData(); 
+              }
             },
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -284,11 +290,9 @@ class _HomePageState extends State<HomePage> {
           child: ListTile(
             title: Text(good.name, style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('数量: ${good.quantity}'),
-            onTap: () { // <-- ADDED
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => GoodDetailPage(good: good)),
-              );
+            onTap: () async {
+              final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => GoodDetailPage(good: good)));
+              if(result == true) { _refreshData(); }
             },
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -334,8 +338,10 @@ class _HomePageState extends State<HomePage> {
           child: ListTile(
             title: Text(good.name, style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('数量: ${good.quantity}'),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => GoodDetailPage(good: good))),
-            trailing: Row(
+            onTap: () async {
+              final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => GoodDetailPage(good: good)));
+              if(result == true) { _refreshData(); }
+            },            trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
@@ -378,11 +384,9 @@ class _HomePageState extends State<HomePage> {
           child: ListTile(
             title: Text(material.name, style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('数量: ${material.quality}'),
-            onTap: () { // <-- ADDED
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => RawMaterialDetailPage(material: material)),
-              );
+            onTap: () async {
+              final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => RawMaterialDetailPage(material: material)));
+              if(result == true) { _refreshData(); }
             },
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -429,8 +433,14 @@ class _HomePageState extends State<HomePage> {
           child: ListTile(
             title: Text(pending.goodName ?? '未知商品', style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('数量: ${pending.quantityInProduction} | 开始于: $formattedDate'),
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => PendingGoodDetailPage(pendingGood: pending)));
+            onTap: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => PendingGoodDetailPage(pendingGood: pending)),
+              );
+              if (result == true) { 
+                _refreshData(); 
+              }
             },
             trailing: Row(
               mainAxisSize: MainAxisSize.min,

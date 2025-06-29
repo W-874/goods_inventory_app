@@ -343,11 +343,11 @@ class _AddGoodPageState extends State<AddGoodPage> {
                   decoration: const InputDecoration(labelText: '商品描述 (可选)', border: OutlineInputBorder()),
                   maxLines: 3,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 // --- NEW SWITCH FOR isComponent ---
                 SwitchListTile(
                   title: const Text('半成品'),
-                  subtitle: const Text('Is this a semi-finished product used to make other goods?'),
+                  //subtitle: const Text('Is this a semi-finished product used to make other goods?'),
                   value: _isComponent,
                   onChanged: (bool value) {
                     setState(() {
@@ -384,9 +384,9 @@ class _AddGoodPageState extends State<AddGoodPage> {
                               width: 120,
                               child: TextFormField(
                                 controller: _materialQuantityControllers[material.materialID],
-                                decoration: const InputDecoration(labelText: 'Qty Needed', border: OutlineInputBorder()),
+                                decoration: const InputDecoration(labelText: '所需数量', border: OutlineInputBorder()),
                                 keyboardType: TextInputType.number,
-                                validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? 'Req.' : null,
+                                validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? '必填.' : null,
                               ),
                             ),
                           ],
@@ -421,9 +421,9 @@ class _AddGoodPageState extends State<AddGoodPage> {
                               width: 120,
                               child: TextFormField(
                                 controller: _goodQuantityControllers[componentGood.goodsId],
-                                decoration: const InputDecoration(labelText: 'Qty Needed', border: OutlineInputBorder()),
+                                decoration: const InputDecoration(labelText: '所需数量', border: OutlineInputBorder()),
                                 keyboardType: TextInputType.number,
-                                validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? 'Req.' : null,
+                                validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? '必填.' : null,
                               ),
                             ),
                           ],
