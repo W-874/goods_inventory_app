@@ -169,7 +169,7 @@ class _GoodDetailPageState extends State<GoodDetailPage> {
               Text('需求的原料', style: textTheme.titleLarge),
               const SizedBox(height: 8),
               FutureBuilder<List<BillOfMaterialEntry>>(
-                future: dbHelper.getBillOfMaterialEntriesForGood(_currentGood.goodsId!),
+                future: dbHelper.getRawMaterialBOMForGood(_currentGood.goodsId!),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());

@@ -145,45 +145,66 @@ class _AddPendingGoodPageState extends State<AddPendingGoodPage> {
                 ),
                 const SizedBox(height: 24),
                 if (_selectedGood != null)
-                  FutureBuilder<List<BillOfMaterialEntry>>(
-                    future: _dbHelper.getBillOfMaterialEntriesForGood(_selectedGood!.goodsId!),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: CircularProgressIndicator(),
-                          ));
-                      }
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return Card(
-                            color: Colors.amber.shade50,
-                            child: Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: Text('No Bill of Materials has been defined for this good.', textAlign: TextAlign.center),
-                            ),
-                        );
-                      }
-                      return Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Required Materials:', style: Theme.of(context).textTheme.titleMedium),
-                               const SizedBox(height: 8),
-                               for (var item in snapshot.data!)
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 8.0, bottom: 4.0),
-                                    child: Text(
-                                      '- ${item.rawMaterialName ?? 'Unknown Material'} (Qty: ${item.quantityNeeded})',
-                                      style: const TextStyle(fontSize: 16),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('所需材料:', style: Theme.of(context).textTheme.titleMedium),
+                          const Divider(),
+                          // FutureBuilder for Raw Materials
+                          FutureBuilder<List<BillOfMaterialEntry>>(
+                            future: _dbHelper.getRawMaterialBOMForGood(_selectedGood!.goodsId!),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()));
+                              }
+                              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                return const SizedBox.shrink(); // Don't show anything if there are no raw materials
+                              }
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('原材料:', style: Theme.of(context).textTheme.titleSmall),
+                                  const SizedBox(height: 4),
+                                  for (var item in snapshot.data!)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 8.0, bottom: 4.0),
+                                      child: Text('- ${item.rawMaterialName ?? '未知'} (数量: ${item.quantityNeeded})'),
                                     ),
-                                  ),
-                            ],
+                                ],
+                              );
+                            },
                           ),
-                        ),
-                      );
-                    }
+                          const SizedBox(height: 16),
+                          // FutureBuilder for Component Goods
+                          FutureBuilder<List<GoodBOMEntry>>(
+                            future: _dbHelper.getGoodsBOMForGood(_selectedGood!.goodsId!),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()));
+                              }
+                              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                return const SizedBox.shrink(); // Don't show anything if there are no component goods
+                              }
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('半成品:', style: Theme.of(context).textTheme.titleSmall),
+                                  const SizedBox(height: 4),
+                                  for (var item in snapshot.data!)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 8.0, bottom: 4.0),
+                                      child: Text('- ${item.componentGoodName ?? '未知'} (数量: ${item.quantityNeeded})'),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                   )
               ],
             ),
