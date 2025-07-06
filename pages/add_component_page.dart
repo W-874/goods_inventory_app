@@ -1,3 +1,4 @@
+// lib/pages/add_component_page.dart
 // lib/pages/add_good_page.dart
 import 'package:flutter/material.dart';
 import 'package:goods_inventory_app/database_helper.dart';
@@ -6,18 +7,18 @@ import 'package:goods_inventory_app/db_constants.dart';
 import 'package:goods_inventory_app/models/models.dart';
 import 'package:sqflite/sqflite.dart';
 
-class AddGoodPage extends StatefulWidget {
-  const AddGoodPage({super.key});
+class AddComponentPage extends StatefulWidget {
+  const AddComponentPage({super.key});
 
   @override
-  State<AddGoodPage> createState() => _AddGoodPageState();
+  State<AddComponentPage> createState() => _AddComponentPageState();
 }
 
-class _AddGoodPageState extends State<AddGoodPage> {
+class _AddComponentPageState extends State<AddComponentPage> {
   final _formKey = GlobalKey<FormState>();
   final _dbHelper = DatabaseHelper.instance;
 
-  // Controllers for the Good's properties
+  // Controllers for the component's properties
   final _goodsIdController = TextEditingController();
   final _nameController = TextEditingController();
   final _quantityController = TextEditingController();
@@ -28,30 +29,18 @@ class _AddGoodPageState extends State<AddGoodPage> {
   List<RawMaterials> _allRawMaterials = [];
   Map<int, RawMaterials> _selectedMaterialsMap = {};
   Map<int, TextEditingController> _materialQuantityControllers = {};
-
-  // State for Component Goods selection
-  List<Good> _allComponentGoods = [];
-  Map<int, Good> _selectedComponentGoods = {};
-  Map<int, TextEditingController> _goodQuantityControllers = {};
-
+  
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _loadAllRawMaterials();
-    _loadAllComponentGoods();
   }
 
   Future<void> _loadAllRawMaterials() async {
     final materials = await _dbHelper.getAllRawMaterials();
     if(mounted) setState(() => _allRawMaterials = materials);
-  }
-  
-  Future<void> _loadAllComponentGoods() async {
-    // For a final good, we only need to select from items marked as components
-    final goods = (await _dbHelper.getAllGoods()).where((g) => g.isComponent).toList();
-    if(mounted) setState(() => _allComponentGoods = goods);
   }
   
   @override
@@ -62,7 +51,6 @@ class _AddGoodPageState extends State<AddGoodPage> {
     _priceController.dispose();
     _descriptionController.dispose();
     _materialQuantityControllers.forEach((_, c) => c.dispose());
-    _goodQuantityControllers.forEach((_, c) => c.dispose());
     super.dispose();
   }
 
@@ -142,81 +130,14 @@ class _AddGoodPageState extends State<AddGoodPage> {
     );
   }
 
-  Future<void> _showComponentGoodSelectionDialog() async {
-    Map<int, Good> tempSelected = Map.from(_selectedComponentGoods);
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('选择需要的半成品'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: _allComponentGoods.isEmpty
-                    ? const Text('未找到商品. 请先添加商品. ')
-                    : ListView.builder(
-                        itemCount: _allComponentGoods.length,
-                        itemBuilder: (context, index) {
-                          final good = _allComponentGoods[index];
-                          return CheckboxListTile(
-                            title: Text(good.name),
-                            subtitle: Text('ID: ${good.goodsId}'),
-                            value: tempSelected.containsKey(good.goodsId),
-                            onChanged: (bool? value) {
-                              setDialogState(() {
-                                if (value == true) {
-                                  tempSelected[good.goodsId!] = good;
-                                } else {
-                                  tempSelected.remove(good.goodsId);
-                                }
-                              });
-                            },
-                          );
-                        },
-                      ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _selectedComponentGoods = tempSelected;
-                      final oldKeys = _goodQuantityControllers.keys.toSet();
-                      final newKeys = _selectedComponentGoods.keys.toSet();
-                      
-                      oldKeys.difference(newKeys).forEach((key) {
-                        _goodQuantityControllers[key]?.dispose();
-                        _goodQuantityControllers.remove(key);
-                      });
-
-                      for (var key in newKeys) {
-                        if (!_goodQuantityControllers.containsKey(key)) {
-                          _goodQuantityControllers[key] = TextEditingController();
-                        }
-                      }
-                    });
-                    Navigator.pop(context);
-                  },
-                  child: const Text('完成'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   Future<void> _saveAll() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
         _showSnackBar('Please fix the errors in the form.', isError: true);
         return;
     }
-
-    for (var controller in {..._materialQuantityControllers, ..._goodQuantityControllers}.values) {
+    for (var controller in _materialQuantityControllers.values) {
         if(controller.text.isEmpty || int.tryParse(controller.text) == null) {
-            _showSnackBar('请为所有选择的原材料输入正确的数值.', isError: true);
+            _showSnackBar('Please enter a valid quantity for all selected materials.', isError: true);
             return;
         }
     }
@@ -234,7 +155,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
           quantity: int.parse(_quantityController.text),
           price: double.tryParse(_priceController.text),
           description: _descriptionController.text.isNotEmpty ? _descriptionController.text : null,
-          isComponent: false, // This is always false for a "Final Good"
+          isComponent: true, // This is always true for this page
         );
 
         int newGoodsId;
@@ -245,7 +166,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
           newGoodsId = await txn.insert(tableGoods, newGood.toMap(forInsertAndAutoincrement: true));
         }
 
-        if (newGoodsId <= 0) throw Exception("Failed to create the new good.");
+        if (newGoodsId <= 0) throw Exception("Failed to create the new component.");
 
         // Save Raw Material BOM entries
         for (final materialId in _selectedMaterialsMap.keys) {
@@ -253,16 +174,9 @@ class _AddGoodPageState extends State<AddGoodPage> {
           final bomEntry = BillOfMaterialEntry(goodsId: newGoodsId, rawMaterialId: materialId, quantityNeeded: quantity);
           await txn.insert(tableBillOfMaterials, bomEntry.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
         }
-
-        // Save Component Good BOM entries
-        for (final goodId in _selectedComponentGoods.keys) {
-            final quantity = int.parse(_goodQuantityControllers[goodId]!.text);
-            final goodBomEntry = GoodBOMEntry(finalGoodId: newGoodsId, componentGoodId: goodId, quantityNeeded: quantity);
-            await txn.insert(tableGoodsBOM, goodBomEntry.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-        }
       });
 
-      _showSnackBar('商品保存成功!');
+      _showSnackBar('半成品保存成功!');
       if(mounted) Navigator.pop(context, true);
 
     } catch (e) {
@@ -276,7 +190,7 @@ class _AddGoodPageState extends State<AddGoodPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('增加新成品'),
+        title: const Text('增加新半成品'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SingleChildScrollView(
@@ -322,9 +236,6 @@ class _AddGoodPageState extends State<AddGoodPage> {
                   decoration: const InputDecoration(labelText: '商品描述 (可选)', border: OutlineInputBorder()),
                   maxLines: 3,
                 ),
-                
-                // The SwitchListTile for isComponent has been removed.
-                
                 const Divider(height: 40, thickness: 1),
 
                 Text('所需原料', style: Theme.of(context).textTheme.titleLarge),
@@ -366,43 +277,6 @@ class _AddGoodPageState extends State<AddGoodPage> {
                     },
                   ),
                 const SizedBox(height: 16),
-            
-                Text('所需半成品', style: Theme.of(context).textTheme.titleMedium),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.add_link),
-                  label: const Text('选择半成品...'),
-                  onPressed: _showComponentGoodSelectionDialog,
-                ),
-
-                if (_selectedComponentGoods.isNotEmpty)
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _selectedComponentGoods.length,
-                    itemBuilder: (context, index) {
-                      final sortedSelectedGoods = _selectedComponentGoods.values.toList()..sort((a, b) => a.name.compareTo(b.name));
-                      final componentGood = sortedSelectedGoods[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Row(
-                          children: [
-                            Expanded(child: Text(componentGood.name, style: const TextStyle(fontSize: 16))),
-                            const SizedBox(width: 16),
-                            SizedBox(
-                              width: 120,
-                              child: TextFormField(
-                                controller: _goodQuantityControllers[componentGood.goodsId],
-                                decoration: const InputDecoration(labelText: '所需数量', border: OutlineInputBorder()),
-                                keyboardType: TextInputType.number,
-                                validator: (v) => v == null || v.isEmpty || int.tryParse(v) == null ? '必填.' : null,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                const SizedBox(height: 24),
                 
                 ElevatedButton(
                   onPressed: _isLoading ? null : _saveAll,
