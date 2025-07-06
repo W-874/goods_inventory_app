@@ -495,28 +495,54 @@ class DatabaseHelper {
     );
   }
 
-  Future<void> cancelProduction(PendingGood pendingGood) async {
-    final db = await instance.database;
-    await db.transaction((txn) async {
-      final bomMaps = await txn.query(tableBillOfMaterials, where: '$columnGoodsId = ?', whereArgs: [pendingGood.goodsId]);
-      final bomEntries = bomMaps.map((map) => BillOfMaterialEntry.fromMap(map)).toList();
-      final goodsBOMMaps = await txn.query(tableGoodsBOM, where: '$columnFinalGoodId = ?', whereArgs: [pendingGood.goodsId]);
-      final goodsBOMEntries = goodsBOMMaps.map((map) => GoodBOMEntry.fromMap(map)).toList();
+Future<void> cancelProduction(PendingGood pendingGood) async {
+  final db = await instance.database;
+  await db.transaction((txn) async {
 
-      for (final entry in bomEntries) {
-        final consumedQty = entry.quantityNeeded * pendingGood.quantityInProduction;
-        final materialMaps = await txn.query(tableRawMaterials, where: '$columnRawMaterialId = ?', whereArgs: [entry.rawMaterialId]);
-        final material = RawMaterials.fromMap(materialMaps.first);
-        await txn.update(tableRawMaterials, {columnRawMaterialRemainingQuantity: material.quality + consumedQty}, where: '$columnRawMaterialId = ?', whereArgs: [entry.rawMaterialId]);
-      }
-      for (final entry in goodsBOMEntries) {
+    final rawMaterialBOMs = await txn.query(
+      tableBillOfMaterials,
+      where: '$columnGoodsId = ?',
+      whereArgs: [pendingGood.goodsId],
+    );
+    final rawMaterialEntries = rawMaterialBOMs.map((map) => BillOfMaterialEntry.fromMap(map)).toList();
+    for (final entry in rawMaterialEntries) {
+      final consumedQty = entry.quantityNeeded * pendingGood.quantityInProduction;
+      final materialMaps = await txn.query(tableRawMaterials, where: '$columnRawMaterialId = ?', whereArgs: [entry.rawMaterialId]);
+      final material = RawMaterials.fromMap(materialMaps.first);
+      
+      await txn.update(
+        tableRawMaterials,
+        {columnRawMaterialRemainingQuantity: material.quality + consumedQty},
+        where: '$columnRawMaterialId = ?',
+        whereArgs: [entry.rawMaterialId],
+      );
+    }
+    
+    final goodsBOMs = await txn.query(
+        tableGoodsBOM,
+        where: '$columnFinalGoodId = ?',
+        whereArgs: [pendingGood.goodsId]
+    );
+    final goodBOMEntries = goodsBOMs.map((map) => GoodBOMEntry.fromMap(map)).toList();
+    for (final entry in goodBOMEntries) {
         final consumedQty = entry.quantityNeeded * pendingGood.quantityInProduction;
         final goodMaps = await txn.query(tableGoods, where: '$columnGoodsId = ?', whereArgs: [entry.componentGoodId]);
         final componentGood = Good.fromMap(goodMaps.first);
-        await txn.update(tableGoods, {columnGoodsRemainingQuantity: componentGood.quantity + consumedQty}, where: '$columnGoodsId = ?', whereArgs: [entry.componentGoodId]);
-      }
-      
-      await deletePendingGood(pendingGood.pendingId!);
-    });
-  }
+
+        await txn.update(
+            tableGoods,
+            {columnGoodsRemainingQuantity: componentGood.quantity + consumedQty},
+            where: '$columnGoodsId = ?',
+            whereArgs: [entry.componentGoodId]
+        );
+    }
+
+    await txn.delete(
+      tablePendingGoods,
+      where: '$columnPendingId = ?',
+      whereArgs: [pendingGood.pendingId],
+    );
+  });
+}
+
 }
