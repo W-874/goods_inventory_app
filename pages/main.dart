@@ -10,12 +10,10 @@ import 'add_pending_good_page.dart';
 import 'good_detail_page.dart';
 import 'raw_material_detail_page.dart';
 import 'pending_good_detail_page.dart';
-import "edit_good_page.dart";
-import "edit_raw_material_page.dart";
+import 'add_component_page.dart'; // Import the new page
 import 'package:goods_inventory_app/models/models.dart';
 
 Future<void> main() async {
-  // Ensure that plugin services are initialized for database path and async operations.
   WidgetsFlutterBinding.ensureInitialized();
   await DatabaseHelper.instance.database; 
   runApp(const MyApp());
@@ -24,8 +22,6 @@ Future<void> main() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
-  // Default color scheme to be used if dynamic color is not available.
   static final _defaultColorScheme = ColorScheme.fromSeed(seedColor: Colors.deepPurple);
 
   @override
@@ -110,27 +106,36 @@ class _HomePageState extends State<HomePage> {
                 title: const Text('新生产'),
                 onTap: () async {
                   Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddPendingGoodPage()));
-                  _refreshData();
+                  final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddPendingGoodPage()));
+                  if (result == true) _refreshData();
                 },
               ),
               const Divider(),
               ListTile(
-                leading: const Icon(Icons.inventory_2_outlined),
-                title: const Text('增加商品'),
+                leading: const Icon(Icons.category_outlined),
+                title: const Text('增加成品'),
                 onTap: () async {
                   Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddGoodPage()));
-                  _refreshData();
+                  final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddGoodPage()));
+                  if (result == true) _refreshData();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.inventory_2_outlined),
+                title: const Text('增加半成品'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddComponentPage()));
+                  if (result == true) _refreshData();
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.layers_outlined),
-                title: const Text('增加原料'),
+                title: const Text('增加原材料'),
                 onTap: () async {
                   Navigator.pop(context);
-                  await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddRawMaterialPage()));
-                  _refreshData();
+                  final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const AddRawMaterialPage()));
+                  if (result == true) _refreshData();
                 },
               ),
             ],
@@ -173,7 +178,7 @@ class _HomePageState extends State<HomePage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('$action Quantity for $goodName'),
+          title: Text('$goodName $action 数量'),
           content: Form(
             key: formKey,
             child: Column(
@@ -231,11 +236,128 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Future<void> _showGoodExportDialog(Good good) async {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Export Quantity for ${good.name}'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Available Quantity: ${good.quantity}'),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Quantity to Export',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Please enter a quantity';
+                    final qty = int.tryParse(value);
+                    if (qty == null || qty <= 0) return 'Please enter a positive number';
+                    if (qty > good.quantity) return 'Cannot export more than available';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            ElevatedButton(
+              child: const Text('Export'),
+              onPressed: () async {
+                if (formKey.currentState?.validate() ?? false) {
+                  final quantity = int.parse(controller.text);
+                  final updatedGood = good.copyWith(quality: good.quantity - quantity);
+                  await dbHelper.updateGood(updatedGood);
+                  Navigator.of(context).pop();
+                  _refreshData();
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// New dialog to handle exporting a quantity of a Raw Material.
+  Future<void> _showRawMaterialExportDialog(RawMaterials material) async {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Use/Export Quantity for ${material.name}'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Available Quantity: ${material.quality}'),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Quantity to Use/Export',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Please enter a quantity';
+                    final qty = int.tryParse(value);
+                    if (qty == null || qty <= 0) return 'Please enter a positive number';
+                    if (qty > material.quality) return 'Cannot use more than available';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            ElevatedButton(
+              child: const Text('Confirm'),
+              onPressed: () async {
+                if (formKey.currentState?.validate() ?? false) {
+                  final quantity = int.parse(controller.text);
+                  final updatedMaterial = material.copyWith(quality: material.quality - quantity);
+                  await dbHelper.updateRawMaterial(updatedMaterial);
+                  Navigator.of(context).pop();
+                  _refreshData();
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 // --- UI Builder Methods ---
   Widget _buildInStoreList() {
-    if (_inStoreGoods.isEmpty) {
-      return const Center(child: Text('目前没有待入库商品.', textAlign: TextAlign.center));
-    }
+    if (_inStoreGoods.isEmpty) { return const Center(child: Text('目前没有待入库商品.', textAlign: TextAlign.center)); }
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
       itemCount: _inStoreGoods.length,
@@ -248,13 +370,8 @@ class _HomePageState extends State<HomePage> {
             title: Text(completedGood.goodName ?? '未知商品', style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('数量: ${completedGood.quantityInProduction} | 完成于: $formattedDate'),
             onTap: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => PendingGoodDetailPage(pendingGood: completedGood)),
-              );
-              if (result == true) { 
-                _refreshData(); 
-              }
+              final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => PendingGoodDetailPage(pendingGood: completedGood)));
+              if(result == true) { _refreshData(); }
             },
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -298,16 +415,9 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary), // Changed icon
-                  tooltip: '编辑商品', // Changed tooltip
-                  onPressed: () async { // Changed action
-                    // Navigate to the new EditGoodPage and refresh when done
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => EditGoodPage(good: good)),
-                    );
-                    _refreshData();
-                  },
+                  icon: Icon(Icons.local_shipping_outlined, color: Theme.of(context).colorScheme.primary),
+                  tooltip: 'Export / Sell',
+                  onPressed: () => _showGoodExportDialog(good),
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
@@ -341,16 +451,14 @@ class _HomePageState extends State<HomePage> {
             onTap: () async {
               final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => GoodDetailPage(good: good)));
               if(result == true) { _refreshData(); }
-            },            trailing: Row(
+            },            
+            trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
-                  tooltip: '编辑半成品',
-                  onPressed: () async {
-                    await Navigator.push(context, MaterialPageRoute(builder: (context) => EditGoodPage(good: good)));
-                    _refreshData();
-                  },
+                  icon: Icon(Icons.local_shipping_outlined, color: Theme.of(context).colorScheme.primary),
+                  tooltip: 'Export / Sell',
+                  onPressed: () => _showGoodExportDialog(good),
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
@@ -392,16 +500,9 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary), // Changed icon
-                  tooltip: '编辑原材料', // Changed tooltip
-                  onPressed: () async { // Changed action
-                    // Navigate to the new EditRawMaterialPage and refresh when done
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => EditRawMaterialPage(material: material)),
-                    );
-                    _refreshData();
-                  },
+                  icon: Icon(Icons.local_shipping_outlined, color: Theme.of(context).colorScheme.primary),
+                  tooltip: 'Use / Export',
+                  onPressed: () => _showRawMaterialExportDialog(material),
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
